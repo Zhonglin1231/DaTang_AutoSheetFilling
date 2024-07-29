@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVB
 
 import numpy as np
 import pandas as pd
-
+from openpyxl import load_workbook
 
 class Window(QWidget):
     def __init__(self):
@@ -90,7 +90,6 @@ class Window(QWidget):
         back_data_path = self.back_data_path
 
         # 读取文件以及需要的数据
-        report = pd.read_excel(report_path, sheet_name="Inputs")
         report_2022 = pd.read_excel(report_2022_path, sheet_name=None)
         report_2023 = pd.read_excel(report_2023_path, sheet_name=None)
         back_data = pd.read_excel(back_data_path)
@@ -185,6 +184,7 @@ class Window(QWidget):
         所有者权益合计_2022 = bal_sheet_2022_con.iloc[(row_to_num(80)), col_to_num("D")]
         递延所得税负债_2022 = bal_sheet_2022_con.iloc[(row_to_num(48)), col_to_num("D")]
         营业收入_2022 = profit_sheet_2022.iloc[(row_to_num(5)), col_to_num("C")]
+        总资产_2022 = bal_sheet_2022.iloc[(row_to_num(62)), col_to_num("D")]
 
             # 2023
         营业利润_2023 = profit_sheet_2023.iloc[row_to_num(8), col_to_num("G")]
@@ -228,6 +228,7 @@ class Window(QWidget):
         所有者权益合计_2023 = bal_sheet_2023.iloc[row_to_num(86), col_to_num("G")]
         递延所得税负债_2023 = bal_sheet_2023.iloc[row_to_num(54), col_to_num("G")]
         营业收入_2023 = profit_sheet_2023.iloc[row_to_num(6), col_to_num("C")]
+        总资产_2023 = bal_sheet_2023.iloc[row_to_num(87), col_to_num("C")]
 
             # 数据打磨
         data_set = {
@@ -494,6 +495,63 @@ class Window(QWidget):
         for i in raw_data_2023:
             print(f"{i}: {raw_data_2022[i]}")
 
+        # 写入数据
+        report = load_workbook(report_path)
+        sheet = report["Inputs"]
+        sheet["E46"] = raw_data_2023["EBITDA利润率"]
+        sheet["F46"] = raw_data_2022["EBITDA利润率"]
+        sheet["E47"] = raw_data_2023["资本回报率"]
+        sheet["F47"] = raw_data_2022["资本回报率"]
+        sheet["E48"] = 营业收入_2023
+        sheet["F48"] = 营业收入_2022
+        sheet["E49"] = 总资产_2023
+        sheet["F49"] = 总资产_2022
+        sheet["E54"] = raw_data_2023["经营活动产生的资金/债务"]
+        sheet["F54"] = raw_data_2022["经营活动产生的资金/债务"]
+        sheet["E55"] = raw_data_2023["债务/息税摊折前利润"]
+        sheet["F55"] = raw_data_2022["债务/息税摊折前利润"]
+        sheet["E56"] = raw_data_2023["自由运营现金流/债务"]
+        sheet["F56"] = raw_data_2022["自由运营现金流/债务"]
+        sheet["E57"] = raw_data_2023["息税摊折前利润 / 利息支出"]
+        sheet["F57"] = raw_data_2022["息税摊折前利润 / 利息支出"]
+        sheet["E58"] = raw_data_2023["经营活动产生的现金(FFO)"]
+        sheet["F58"] = raw_data_2022["经营活动产生的现金(FFO)"]
+        sheet["E59"] = raw_data_2023["总负债"]
+        sheet["F59"] = raw_data_2022["总负债"]
+        sheet["E60"] = raw_data_2023["EBITDA"]
+        sheet["F60"] = raw_data_2022["EBITDA"]
+        sheet["E63"] = 营业收入_2023
+        sheet["F63"] = 营业收入_2022
+        sheet["E64"] = 总资产_2023
+        sheet["F64"] = 总资产_2022
+
+        sheet["B46"] = raw_data_2023["EBITDA利润率"]
+        sheet["B47"] = raw_data_2023["资本回报率"]
+        sheet["B48"] = 营业收入_2023
+        sheet["B49"] = 总资产_2023
+        sheet["B54"] = raw_data_2023["经营活动产生的资金/债务"]
+        sheet["B55"] = raw_data_2023["债务/息税摊折前利润"]
+        sheet["B56"] = raw_data_2023["自由运营现金流/债务"]
+        sheet["B57"] = raw_data_2023["息税摊折前利润 / 利息支出"]
+        sheet["B58"] = raw_data_2023["经营活动产生的现金(FFO)"]
+        sheet["B59"] = raw_data_2023["总负债"]
+        sheet["B60"] = raw_data_2023["EBITDA"]
+        sheet["B63"] = 营业收入_2023
+        sheet["B64"] = 总资产_2023
+
+        # 排查数据
+            # 如果发生以下任意一种情况，请将财务比率输入为 "NM"：
+                # a) 如果任何财务比率的分母为零；
+                # b) 如果任意财务比率的分子和分母均为负数。
+        for i in sheet["B46:F64"]:
+            for j in i:
+                print(j.value)
+                if j.value == "inf" or j.value == "-inf" or j.value == "nan":
+                    j.value = "NM"
+
+
+        report.save(report_path)
+        
 
 
 # excel里列的字母转数字
