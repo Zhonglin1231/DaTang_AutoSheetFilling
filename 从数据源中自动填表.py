@@ -1,7 +1,7 @@
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVBoxLayout, QLabel, QMessageBox
-
+from PyQt5.QtCore import Qt
 import numpy as np
 import pandas as pd
 from openpyxl import load_workbook
@@ -14,10 +14,12 @@ class Window(QWidget):
         self.report_2023_path = ""
         self.back_data_path = ""
         self.target_path = ""
+        self.count = 0
 
     def initUI(self):
         self.setGeometry(700, 400, 600, 420)
-        self.setWindowTitle('数据源选择')
+        self.setWindowTitle('自动填表生成器')
+
 
         layout = QVBoxLayout()
 
@@ -35,25 +37,30 @@ class Window(QWidget):
         layout.addWidget(self.button3)
 
 
-        self.button4 = QPushButton('生成位置', self)
+        self.button4 = QPushButton('填入文件路径', self)
         self.button4.clicked.connect(self.selectTargetPath)
         layout.addWidget(self.button4)  
+
+        # 设置一个文字, 箭头向下,居中对齐
+        self.label = QLabel('--------↓--------', self)
+        self.label.setAlignment(Qt.AlignCenter)  # 设置箭头居中对齐
+        layout.addWidget(self.label)
 
         self.button5 = QPushButton('开始处理', self)
         self.button5.clicked.connect(self.startProcess) # 开始处理
         layout.addWidget(self.button5)
 
         # 标签设置
-        self.label_2022 = QLabel('2022年年报路径: 未选择', self)
+        self.label_2022 = QLabel('2022年年报路径: <font color="red">未选择</font>', self)
         layout.addWidget(self.label_2022)
 
-        self.label_2023 = QLabel('2023年年报路径: 未选择', self)
+        self.label_2023 = QLabel('2023年年报路径: <font color="red">未选择</font>', self)
         layout.addWidget(self.label_2023)
 
-        self.label_back_data = QLabel('备份数据路径: 未选择', self)
+        self.label_back_data = QLabel('数据底稿路径: <font color="red">未选择</font>', self)
         layout.addWidget(self.label_back_data)
 
-        self.label_target_path = QLabel('生成位置: 未选择', self)
+        self.label_target_path = QLabel('填入文件路径: <font color="red">未选择</font>', self)
         layout.addWidget(self.label_target_path)
 
         self.setLayout(layout)
@@ -63,27 +70,34 @@ class Window(QWidget):
         file_path, _ = QFileDialog.getOpenFileName(self, '选择2022年年报文件')
         if file_path:
             self.report_2022_path = file_path
-            self.label_2022.setText(f'2022年年报路径: {file_path}')
+            self.label_2022.setText(f'2022年年报路径: <font color="green">{file_path}</font>')
+            self.count += 1
 
     def selectReport2023(self):
         file_path, _ = QFileDialog.getOpenFileName(self, '选择2023年年报文件')
         if file_path:
             self.report_2023_path = file_path
-            self.label_2023.setText(f'2023年年报路径: {file_path}')
+            self.label_2023.setText(f'2023年年报路径: <font color="green">{file_path}</font>')
+            self.count += 1
 
     def selectBackData(self):
         file_path, _ = QFileDialog.getOpenFileName(self, '选择数据底稿文件')
         if file_path:
             self.back_data_path = file_path
-            self.label_back_data.setText(f'数据底稿路径: {file_path}')
+            self.label_back_data.setText(f'数据底稿路径: <font color="green">{file_path}</font>')
+            self.count += 1
 
     def selectTargetPath(self):
         file_path, _ = QFileDialog.getOpenFileName(self, '选择生成位置')
         if file_path:
             self.target_path = file_path
-            self.label_target_path.setText(f'生成位置: {file_path}')
+            self.label_target_path.setText(f'生成位置: <font color="green">{file_path}</font>')
+            self.count += 1
 
     def startProcess(self):
+        if self.count < 4:
+            QMessageBox.warning(self, '警告', '请先选择所有文件')
+            return
         # 设置路径
         report_path = self.target_path
         report_2022_path = self.report_2022_path
@@ -112,37 +126,7 @@ class Window(QWidget):
             # 数据底稿
         back_data = back_data
 
-        # 数据分配
-            # 建立字典
-        raw_data_2022 = {"EBITDA": 0,
-                        "EBIT": 0,
-                        "自由运营现金流(FOCF)": 0,
-                        "经营活动产生的现金(FFO)": 0,
-                        "总负债": 0,
-                        "资本": 0,
-                        "EBITDA利润率": 0,
-                        "资本回报率": 0,
-                        "经营活动产生的资金/债务": 0,
-                        "债务/息税摊折前利润": 0,
-                        "自由运营现金流/债务": 0,
-                        "息税摊折前利润 / 利息支出": 0
-                        }
-
-        raw_data_2023 = {"EBITDA": 0,
-                        "EBIT": 0,
-                        "自由运营现金流(FOCF)": 0,
-                        "经营活动产生的现金(FFO)": 0,
-                        "总负债": 0,
-                        "资本": 0,
-                        "EBITDA利润率": 0,
-                        "资本回报率": 0,
-                        "经营活动产生的资金/债务": 0,
-                        "债务/息税摊折前利润": 0,
-                        "自由运营现金流/债务": 0,
-                        "息税摊折前利润 / 利息支出": 0
-                        }
-
-        # 计算
+# ----------------------------------原始数据赋值--------------------------------
             # 2022
         营业利润_2022 = profit_sheet_2022.iloc[(row_to_num(7)), col_to_num("G")]
         财务费用_2022 = profit_sheet_2022.iloc[(row_to_num(33)), col_to_num("C")]
@@ -250,6 +234,38 @@ class Window(QWidget):
             if np.isnan(data_set[i]):
                 data_set[i] = 0
 
+#  ------------------------------最终有用数据赋值--------------------------------
+        
+        # 数据分配----------------------------
+            # 建立字典
+        raw_data_2022 = {"EBITDA": 0,
+                        "EBIT": 0,
+                        "自由运营现金流(FOCF)": 0,
+                        "经营活动产生的现金(FFO)": 0,
+                        "总负债": 0,
+                        "资本": 0,
+                        "EBITDA利润率": 0,
+                        "资本回报率": 0,
+                        "经营活动产生的资金/债务": 0,
+                        "债务/息税摊折前利润": 0,
+                        "自由运营现金流/债务": 0,
+                        "息税摊折前利润 / 利息支出": 0
+                        }
+
+        raw_data_2023 = {"EBITDA": 0,
+                        "EBIT": 0,
+                        "自由运营现金流(FOCF)": 0,
+                        "经营活动产生的现金(FFO)": 0,
+                        "总负债": 0,
+                        "资本": 0,
+                        "EBITDA利润率": 0,
+                        "资本回报率": 0,
+                        "经营活动产生的资金/债务": 0,
+                        "债务/息税摊折前利润": 0,
+                        "自由运营现金流/债务": 0,
+                        "息税摊折前利润 / 利息支出": 0
+                        }
+        # 数据赋值 -------------------------------
         raw_data_2022["EBITDA"] = EBITDA(
             data_set["营业利润_2022"],
             data_set["财务费用_2022"],
@@ -461,10 +477,15 @@ class Window(QWidget):
             data_set["营业收入_2023"]
         )
 
-        raw_data_2023["资本回报率"] = Capital_RR(
-            raw_data_2023["EBIT"],
-            raw_data_2023["资本"]
-        )
+        # 资本回报率计算
+        if (raw_data_2023["资本"] != 0 and 所有者权益合计_2022 != 0):
+            raw_data_2023["资本回报率"] = raw_data_2023["EBIT"] / ((raw_data_2023["资本"] + raw_data_2022["资本"])/2)
+
+        else:
+            raw_data_2023["资本回报率"] = Capital_RR(
+                raw_data_2023["EBIT"],
+                raw_data_2023["资本"]
+            )
 
         raw_data_2023["经营活动产生的资金/债务"] = Operating_cash_to_debt(
             raw_data_2023["经营活动产生的现金(FFO)"],
@@ -488,17 +509,17 @@ class Window(QWidget):
             data_set["经营租赁的利息调整_2023"]
         )
 
-        # 输出数据 用于查看
-        print("--------2022年----------")
-        for i in raw_data_2022:
-            print(f"{i}: {raw_data_2022[i]}")
+        # # 输出数据 用于查看
+        # print("--------2022年----------")
+        # for i in raw_data_2022:
+        #     print(f"{i}: {raw_data_2022[i]}")
 
-        print("\n--------2023年----------")
+        # print("\n--------2023年----------")
 
-        for i in raw_data_2023:
-            print(f"{i}: {raw_data_2022[i]}")
+        # for i in raw_data_2023:
+        #     print(f"{i}: {raw_data_2022[i]}")
 
-        # 写入数据
+# -------------------------------写入数据------------------------------
         report = load_workbook(report_path)
         sheet = report["Inputs"]
         sheet["E46"] = raw_data_2023["EBITDA利润率"]
@@ -565,12 +586,14 @@ class Window(QWidget):
             sheet["E55"], sheet["B55"] = "NM", "NM"
         if raw_data_2023["自由运营现金流(FOCF)"] < 0 and raw_data_2023["总负债"] < 0:
             sheet["E56"], sheet["B56"] = "NM", "NM"
+#  --------------------------------------结尾--------------------------------------------------
 
         # 保存文件
         report.save(report_path)
         
         # 弹出窗口表示完成
         QMessageBox.information(self, "提示", "数据填充完成", QMessageBox.Yes)
+
 
         print("总负债数据: ", "\n短期借款: " + str(短期借款_2023), "\n应付利息: " + str(应付利息_2023), "\n一年内到期的长期借款: " + str(一年内到期的长期借款_2023), "\n一年内到期的应付债券: " + str(一年内到期的应付债券_2023), "\n其它流动负债短期应付债券: " + str(其它流动负债短期应付债券_2023), "\n一年内应付融资租赁款: " + str(一年内应付融资租赁款_2023), "\n长期借款: " + str(长期借款_2023), "\n应付债券: " + str(应付债券_2023), "\n长期应付融资租赁款: " + str(长期应付融资租赁款_2023), "\n重大合同及履行状况担保情况: " + str(重大合同及履行状况担保情况_2023), "\n货币资金: " + str(货币资金_2023), "\n以公允价值计量且其变动计入当期损益的金融资产: " + str(以公允价值计量且其变动计入当期损益的金融资产_2023), "\n其他货币资金: " + str(其他货币资金_2023), "\n卖出回购金融资产款: " + str(卖出回购金融资产款_2023), "\n特定行业或公司现金盈余不做调整扣除的部分加回: " + str(特定行业或公司现金盈余不做调整扣除的部分加回_2023), "\n经营租赁调整: " + str(经营租赁调整_2023), "\n永续债: " + str(永续债_2023))
         print("FFO数据: ", "\nEBITDA: " + str(raw_data_2023["EBITDA"]), "\n利息费用: " + str(利息费用_2023), "\n利息收入: " + str(利息收入_2023), "\n所得税费用: " + str(所得税费用_2023), "\n经营租赁费用调整: " + str(经营租赁费用调整_2023), "\n经营租赁折旧调整: " + str(经营租赁折旧调整_2023), "\n资本化利息: " + str(资本化利息_2023))
@@ -579,8 +602,23 @@ class Window(QWidget):
 
         # 自动打开文件
         os.startfile(report_path)
-        self.close()
 
+        # 重新初始化
+        Window.reset(self)
+
+    def reset(self):
+        # 参数初始化
+        self.report_2022_path = ""
+        self.report_2023_path = ""
+        self.back_data_path = ""
+        self.target_path = ""
+        self.count = 0
+        self.label_2022.setText(f'2022年年报路径: <font color="red">未选择</font>')
+        self.label_2023.setText(f'2023年年报路径: <font color="red">未选择</font>')
+        self.label_back_data.setText(f'数据底稿路径: <font color="red">未选择</font>')
+        self.label_target_path.setText(f'填入文件路径: <font color="red">未选择</font>')
+        
+# ------------------------------------函数定义-------------------------------------
 # excel里列的字母转数字
 def col_to_num(col_str):
     num = 0
@@ -629,6 +667,7 @@ def FOCF_to_debt(FOCF, 总负债):
 def EBITDA_to_interest_expense(EBITDA, 财务费用, 资本化利息, 经营租赁的利息调整):
     return EBITDA / (财务费用 + 资本化利息 + 经营租赁的利息调整)
 
+# ------------------------------------启动-------------------------------------
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
