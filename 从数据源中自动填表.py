@@ -95,9 +95,16 @@ class Window(QWidget):
             self.count += 1
 
     def startProcess(self):
+        # 检查可能的错误
+            # 是否上传全部文件
         if self.count < 4:
             QMessageBox.warning(self, '警告', '请先选择所有文件')
             return
+            # 是否选择了正确的文件
+        if not self.report_2022_path.endswith('.xlsx') or not self.report_2023_path.endswith('.xlsx') or not self.back_data_path.endswith('.xlsx') or not self.target_path.endswith('.xlsx'):
+            QMessageBox.warning(self, '警告', '请选择正确的表格文件文件(.xlsx)')
+            return
+
         # 设置路径
         report_path = self.target_path
         report_2022_path = self.report_2022_path
@@ -105,22 +112,62 @@ class Window(QWidget):
         back_data_path = self.back_data_path
 
         # 读取文件以及需要的数据
-        report_2022 = pd.read_excel(report_2022_path, sheet_name=None)
-        report_2023 = pd.read_excel(report_2023_path, sheet_name=None)
-        back_data = pd.read_excel(back_data_path)
+        try:
+            report_2022 = pd.read_excel(report_2022_path, sheet_name=None)
+        except:
+            QMessageBox.warning(self, '警告', '2022年年报文件读取失败')
+            return
+        try:
+            report_2023 = pd.read_excel(report_2023_path, sheet_name=None)
+        except:
+            QMessageBox.warning(self, '警告', '2023年年报文件读取失败')
+            return
+        try:
+            back_data = pd.read_excel(back_data_path)
+        except:
+            QMessageBox.warning(self, '警告', '数据底稿文件读取失败')
+            return
 
         # 数据预处理
             # 2022年年报数据
-        bal_sheet_2022 = report_2022["NB003-资产负债表"]
-        bal_sheet_2022_con = report_2022["NB004-资产负债表（续）"]
-        profit_sheet_2022 = report_2022["NB005-利润表"]
-        cash_sheet_2022 = report_2022["NB006-现金流量表"]
+        try:
+            bal_sheet_2022 = report_2022["NB003-资产负债表"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2022年资产负债表')
+            return
+        try:
+            bal_sheet_2022_con = report_2022["NB004-资产负债表（续）"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2022年资产负债表（续）')
+            return
+        try:
+            profit_sheet_2022 = report_2022["NB005-利润表"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2022年利润表')
+            return
+        try:
+            cash_sheet_2022 = report_2022["NB006-现金流量表"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2022年现金流量表')
+            return
 
 
             # 2023年年报数据
-        bal_sheet_2023 = report_2023["Z01 资产负债表"]
-        profit_sheet_2023 = report_2023["Z02 利润表"]
-        cash_sheet_2023 = report_2023["Z03 现金流量表"]
+        try:
+            bal_sheet_2023 = report_2023["Z01 资产负债表"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2023年资产负债表')
+            return
+        try:
+            profit_sheet_2023 = report_2023["Z02 利润表"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2023年利润表')
+            return
+        try:
+            cash_sheet_2023 = report_2023["Z03 现金流量表"]
+        except:
+            QMessageBox.warning(self, '警告', '找不到2023年现金流量表')
+            return
 
 
             # 数据底稿
@@ -233,6 +280,9 @@ class Window(QWidget):
         for i in data_set:
             if np.isnan(data_set[i]):
                 data_set[i] = 0
+            elif type(data_set[i]) == str:
+                QMessageBox.warning(self, '警告', f'数据{data_set[i]}不是数字, 请检查数据是否对应正确')
+                return
 
 #  ------------------------------最终有用数据赋值--------------------------------
         
