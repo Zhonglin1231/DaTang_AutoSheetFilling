@@ -1,8 +1,8 @@
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVBoxLayout, QLabel, QMessageBox
-from PyQt5.QtCore import Qt
-import numpy as np
+# from PyQt5.QtCore import Qt # 引入Qt库感觉太大了
+# import numpy as np # 引入numpy库感觉太大了
 import pandas as pd
 from openpyxl import load_workbook
 
@@ -42,8 +42,8 @@ class Window(QWidget):
         layout.addWidget(self.button4)  
 
         # 设置一个文字, 箭头向下,居中对齐
-        self.label = QLabel('--------↓--------', self)
-        self.label.setAlignment(Qt.AlignCenter)  # 设置箭头居中对齐
+        self.label = QLabel('                           --------↓--------', self)
+        # self.label.setAlignment(Qt.AlignCenter)  # 设置箭头居中对齐
         layout.addWidget(self.label)
 
         self.button5 = QPushButton('开始处理', self)
@@ -101,8 +101,8 @@ class Window(QWidget):
             QMessageBox.warning(self, '警告', '请先选择所有文件')
             return
             # 是否选择了正确的文件
-        if not self.report_2022_path.endswith('.xlsx') or not self.report_2023_path.endswith('.xlsx') or not self.back_data_path.endswith('.xlsx') or not self.target_path.endswith('.xlsx'):
-            QMessageBox.warning(self, '警告', '请选择正确的表格文件文件(.xlsx)')
+        if not (self.report_2022_path.endswith('.xlsx') or self.report_2022_path.endswith('.xls')) or not (self.report_2023_path.endswith('.xlsx') or self.report_2023_path.endswith('.xls')) or not (self.back_data_path.endswith('.xlsx') or self.back_data_path.endswith('.xls')) or not (self.target_path.endswith('.xlsx') or self.target_path.endswith('.xls')):
+            QMessageBox.warning(self, '警告', '请选择正确的表格文件文件(.xlsx)/(.xls)')
             return
 
         # 设置路径
@@ -130,43 +130,53 @@ class Window(QWidget):
 
         # 数据预处理
             # 2022年年报数据
-        try:
-            bal_sheet_2022 = report_2022["NB003-资产负债表"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2022年资产负债表')
-            return
-        try:
-            bal_sheet_2022_con = report_2022["NB004-资产负债表（续）"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2022年资产负债表（续）')
-            return
-        try:
-            profit_sheet_2022 = report_2022["NB005-利润表"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2022年利润表')
-            return
-        try:
-            cash_sheet_2022 = report_2022["NB006-现金流量表"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2022年现金流量表')
+
+        # 获取所有表名
+        sheet_names = report_2022.keys()
+        sheet_count = 0
+        print(sheet_names)
+        for sheet_name in sheet_names:
+            if sheet_name[-5:] == "资产负债表":
+                bal_sheet_2022 = report_2022[sheet_name]
+                sheet_count += 1
+                print("资产负债表")
+            elif "资产负债表" in sheet_name:
+                bal_sheet_2022_con = report_2022[sheet_name]
+                sheet_count += 1
+                print("资产负债表_con")
+            elif "利润表" in sheet_name:
+                profit_sheet_2022 = report_2022[sheet_name]
+                sheet_count += 1
+                print("利润表")
+            elif "现金流量表" in sheet_name:
+                cash_sheet_2022 = report_2022[sheet_name]
+                sheet_count += 1
+                print("现金流量表")
+            print(sheet_name)
+            if sheet_count == 4:
+                break
+        if sheet_count != 4:
+            QMessageBox.warning(self, '警告', '2022年年报文件中表格数量不正确')
             return
 
 
             # 2023年年报数据
-        try:
-            bal_sheet_2023 = report_2023["Z01 资产负债表"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2023年资产负债表')
-            return
-        try:
-            profit_sheet_2023 = report_2023["Z02 利润表"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2023年利润表')
-            return
-        try:
-            cash_sheet_2023 = report_2023["Z03 现金流量表"]
-        except:
-            QMessageBox.warning(self, '警告', '找不到2023年现金流量表')
+        sheet_names = report_2023.keys()
+        sheet_count = 0
+        for sheet_name in sheet_names:
+            if sheet_name[-5:] == "资产负债表":
+                bal_sheet_2023 = report_2023[sheet_name]
+                sheet_count += 1
+            elif "利润表" in sheet_name:
+                profit_sheet_2023 = report_2023[sheet_name]
+                sheet_count += 1
+            elif "现金流量表" in sheet_name:
+                cash_sheet_2023 = report_2023[sheet_name]
+                sheet_count += 1
+            if sheet_count == 3:
+                break
+        if sheet_count != 3:
+            QMessageBox.warning(self, '警告', '2023年年报文件中表格数量不正确')
             return
 
 
@@ -278,7 +288,7 @@ class Window(QWidget):
 
                 # 将所有空着的数据填充为0
         for i in data_set:
-            if np.isnan(data_set[i]):
+            if str(data_set[i]) == "nan":
                 data_set[i] = 0
             elif type(data_set[i]) == str:
                 QMessageBox.warning(self, '警告', f'数据{data_set[i]}不是数字, 请检查数据是否对应正确')
