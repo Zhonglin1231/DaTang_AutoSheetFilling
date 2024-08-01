@@ -1,8 +1,6 @@
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVBoxLayout, QLabel, QMessageBox
-# from PyQt5.QtCore import Qt # 引入Qt库感觉太大了
-# import numpy as np # 引入numpy库感觉太大了
 import pandas as pd
 from openpyxl import load_workbook
 
@@ -10,697 +8,499 @@ class Window(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.report_2022_path = ""
-        self.report_2023_path = ""
-        self.back_data_path = ""
-        self.target_path = ""
-        self.count = 0
+        self.paths = {
+            "report_2021_path": "",
+            "report_2022_path": "",
+            "report_2023_path": "",
+            "back_data_path": "",
+            "target_path": ""
+        }
 
     def initUI(self):
         self.setGeometry(700, 400, 600, 420)
         self.setWindowTitle('自动填表生成器')
-
-
         layout = QVBoxLayout()
-
-        # 按钮设置
-        self.button1 = QPushButton('选择2022年年报', self)
-        self.button1.clicked.connect(self.selectReport2022)
-        layout.addWidget(self.button1)
-
-        self.button2 = QPushButton('选择2023年年报', self)
-        self.button2.clicked.connect(self.selectReport2023)
-        layout.addWidget(self.button2)
-
-        self.button3 = QPushButton('选择数据底稿', self)
-        self.button3.clicked.connect(self.selectBackData)
-        layout.addWidget(self.button3)
-
-
-        self.button4 = QPushButton('填入文件路径', self)
-        self.button4.clicked.connect(self.selectTargetPath)
-        layout.addWidget(self.button4)  
-
-        # 设置一个文字, 箭头向下,居中对齐
-        self.label = QLabel('                           --------↓--------', self)
-        # self.label.setAlignment(Qt.AlignCenter)  # 设置箭头居中对齐
-        layout.addWidget(self.label)
-
-        self.button5 = QPushButton('开始处理', self)
-        self.button5.clicked.connect(self.startProcess) # 开始处理
-        layout.addWidget(self.button5)
-
-        # 标签设置
-        self.label_2022 = QLabel('2022年年报路径: <font color="red">未选择</font>', self)
-        layout.addWidget(self.label_2022)
-
-        self.label_2023 = QLabel('2023年年报路径: <font color="red">未选择</font>', self)
-        layout.addWidget(self.label_2023)
-
-        self.label_back_data = QLabel('数据底稿路径: <font color="red">未选择</font>', self)
-        layout.addWidget(self.label_back_data)
-
-        self.label_target_path = QLabel('填入文件路径: <font color="red">未选择</font>', self)
-        layout.addWidget(self.label_target_path)
+        self.add_button(layout, '选择2021年年报', self.select_file, "report_2021_path")
+        self.add_button(layout, '选择2022年年报', self.select_file, "report_2022_path")
+        self.add_button(layout, '选择2023年年报', self.select_file, "report_2023_path")
+        self.add_button(layout, '选择数据底稿', self.select_file, "back_data_path")
+        self.add_button(layout, '填入文件路径', self.select_file, "target_path")
+        
+        layout.addWidget(QLabel('--------↓--------', self))
+        self.add_button(layout, '开始处理', self.startProcess)
+        
+        self.labels = {
+            "report_2021_path": QLabel('2021年年报路径: <font color="red">未选择</font>', self),
+            "report_2022_path": QLabel('2022年年报路径: <font color="red">未选择</font>', self),
+            "report_2023_path": QLabel('2023年年报路径: <font color="red">未选择</font>', self),
+            "back_data_path": QLabel('数据底稿路径: <font color="red">未选择</font>', self),
+            "target_path": QLabel('填入文件路径: <font color="red">未选择</font>', self)
+        }
+        
+        for label in self.labels.values():
+            layout.addWidget(label)
 
         self.setLayout(layout)
         self.show()
 
-    def selectReport2022(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, '选择2022年年报文件')
-        if file_path:
-            self.report_2022_path = file_path
-            self.label_2022.setText(f'2022年年报路径: <font color="green">{file_path}</font>')
-            self.count += 1
+    def add_button(self, layout, text, handler, *args):
+        button = QPushButton(text, self)
+        button.clicked.connect(lambda: handler(*args))
+        layout.addWidget(button)
 
-    def selectReport2023(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, '选择2023年年报文件')
+    def select_file(self, path_key):
+        file_path, _ = QFileDialog.getOpenFileName(self, '选择文件')
         if file_path:
-            self.report_2023_path = file_path
-            self.label_2023.setText(f'2023年年报路径: <font color="green">{file_path}</font>')
-            self.count += 1
-
-    def selectBackData(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, '选择数据底稿文件')
-        if file_path:
-            self.back_data_path = file_path
-            self.label_back_data.setText(f'数据底稿路径: <font color="green">{file_path}</font>')
-            self.count += 1
-
-    def selectTargetPath(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, '选择生成位置')
-        if file_path:
-            self.target_path = file_path
-            self.label_target_path.setText(f'生成位置: <font color="green">{file_path}</font>')
-            self.count += 1
+            self.paths[path_key] = file_path
+            self.labels[path_key].setText(f'{path_key}: <font color="green">{file_path}</font>')
 
     def startProcess(self):
-        # 检查可能的错误
-            # 是否上传全部文件
-        if self.count < 4:
+        if any(not path for path in self.paths.values()):
             QMessageBox.warning(self, '警告', '请先选择所有文件')
             return
-            # 是否选择了正确的文件
-        if not (self.report_2022_path.endswith('.xlsx') or self.report_2022_path.endswith('.xls')) or not (self.report_2023_path.endswith('.xlsx') or self.report_2023_path.endswith('.xls')) or not (self.back_data_path.endswith('.xlsx') or self.back_data_path.endswith('.xls')) or not (self.target_path.endswith('.xlsx') or self.target_path.endswith('.xls')):
+
+        if not all(path.endswith(('.xlsx', '.xls')) for path in self.paths.values()):
             QMessageBox.warning(self, '警告', '请选择正确的表格文件文件(.xlsx)/(.xls)')
             return
 
-        # 设置路径
-        report_path = self.target_path
-        report_2022_path = self.report_2022_path
-        report_2023_path = self.report_2023_path
-        back_data_path = self.back_data_path
+        report_2021, report_2022, report_2023, back_data = self.read_files()
+        if report_2021 is None or report_2022 is None or report_2023 is None or back_data is None:
+            return
+        
+        data_2021, data_2022, data_2023 = self.extract_data(report_2021), self.extract_data(report_2022), self.extract_data(report_2023)
+        if data_2021 is None or data_2022 is None or data_2023 is None:
+            QMessageBox.warning(self, '警告', '年报文件中表格数量不正确')
+            return
 
-        # 读取文件以及需要的数据
+        final_data_2021 = self.calculate_data(data_2021, back_data, 2021)
+        final_data_2022 = self.calculate_data(data_2022, back_data, 2022)
+        final_data_2023 = self.calculate_data(data_2023, back_data, 2023)
+
+        # 修正数据----------------------------------
+            # 资本回报率取均值
+        if (final_data_2022["资本"]!=0) and (final_data_2021["所有者权益合计"]!=0):
+            final_data_2022["资本回报率"] = final_data_2022["EBIT"] / ((final_data_2022["资本"] + final_data_2021["资本"])/2)
+        
+        if (final_data_2023["资本"]!=0) and (final_data_2022["所有者权益合计"]!=0):
+            final_data_2023["资本回报率"] = final_data_2023["EBIT"] / ((final_data_2023["资本"] + final_data_2022["资本"])/2)
+            # ---------------------------------
+        
+        self.write_to_excel(final_data_2021, final_data_2022, final_data_2023)
+
+    def read_files(self):
         try:
-            report_2022 = pd.read_excel(report_2022_path, sheet_name=None)
+            report_2021 = pd.read_excel(self.paths["report_2021_path"], sheet_name=None)
+        except:
+            QMessageBox.warning(self, '警告', '2021年年报文件读取失败')
+            return None, None, None
+        try:
+            report_2022 = pd.read_excel(self.paths["report_2022_path"], sheet_name=None)
         except:
             QMessageBox.warning(self, '警告', '2022年年报文件读取失败')
-            return
+            return None, None, None
         try:
-            report_2023 = pd.read_excel(report_2023_path, sheet_name=None)
+            report_2023 = pd.read_excel(self.paths["report_2023_path"], sheet_name=None)
         except:
             QMessageBox.warning(self, '警告', '2023年年报文件读取失败')
-            return
+            return None, None, None
         try:
-            back_data = pd.read_excel(back_data_path)
+            back_data = pd.read_excel(self.paths["back_data_path"])
         except:
             QMessageBox.warning(self, '警告', '数据底稿文件读取失败')
-            return
+            return None, None, None
+        return report_2021, report_2022, report_2023, back_data
 
-        # 数据预处理
-            # 2022年年报数据
+    def extract_data(self, report):
+            sheets = {name: sheet for name, sheet in report.items() if "资产负债表" in name or "利润表" in name or "现金流量表" in name}
+            sheets = dict(list(sheets.items())[:4]) # 只取前四个表 
+            if len(sheets) != 4:
+                return None
+            sheets_list = list(sheets.values())
+            bal_sheet = sheets_list[0]
+            bal_sheet_con = sheets_list[1]
+            profit_sheet = sheets_list[2]
+            cash_sheet = sheets_list[3]
+            # 汇总到一个sheets中
+            sheets = {
+                "资产负债表": bal_sheet,
+                "资产负债表_con": bal_sheet_con,
+                "利润表": profit_sheet,
+                "现金流量表": cash_sheet
+            }
+            return sheets
 
-        # 获取所有表名
-        sheet_names = report_2022.keys()
-        sheet_count = 0
-        # print(sheet_names)
-        for sheet_name in sheet_names:
-            if sheet_name[-5:] == "资产负债表":
-                bal_sheet_2022 = report_2022[sheet_name]
-                sheet_count += 1
-                # print("资产负债表")
-            elif "资产负债表" in sheet_name:
-                bal_sheet_2022_con = report_2022[sheet_name]
-                sheet_count += 1
-                # print("资产负债表_con")
-            elif "利润表" in sheet_name:
-                profit_sheet_2022 = report_2022[sheet_name]
-                sheet_count += 1
-                # print("利润表")
-            elif "现金流量表" in sheet_name:
-                cash_sheet_2022 = report_2022[sheet_name]
-                sheet_count += 1
-                # print("现金流量表")
-            # print(sheet_name)
-            if sheet_count == 4:
-                break
-        if sheet_count != 4:
-            QMessageBox.warning(self, '警告', '2022年年报文件中表格数量不正确')
-            return
+    def calculate_data(self, sheets, back_data, year):
+        data = {}
+        if year == 2021:
+            data_set = self.extract_values_2021(sheets, back_data)
+        elif year == 2022:
+            data_set = self.extract_values_2022(sheets, back_data)
+        elif year == 2023:
+            data_set = self.extract_values_2023(sheets, back_data)
+        
+        print(year, "----------------")
+        for i in data_set:
+            print(i, data_set[i])
+
+        data["EBITDA"] = EBITDA(
+            data_set["营业利润"],
+            data_set["财务费用"],
+            data_set["折旧费"],
+            data_set["公允价值变动"],
+            data_set["投资收益"],
+            data_set["取得投资收益收到的现金"],
+            data_set["政府补助"],
+            data_set["经营租赁费用调整"],
+            data_set["资本化开发成本"],
+            data_set["勘探费用"]
+        )
+
+        data["EBIT"] = EBIT(
+            data_set["营业利润"],
+            data_set["财务费用"],
+            data_set["利息收入"],
+            data_set["公允价值变动"],
+            data_set["投资收益"],
+            data_set["对联营企业和合营企业的投资收益"],
+            data_set["政府补助"],
+            data_set["经营租赁的利息调整"]
+        )
+
+        data["自由运营现金流(FOCF)"] = FOCF(
+            data_set["经营活动产生的现金流量净额"],
+            data_set["购建固定资产无形资产和其他长期资产支付的现金"],
+            data_set["取得投资收益收到的现金"],
+            data_set["收到其他与投资活动有关的现金附注利息部分"],
+            data_set["分配股利利润或偿付利息支付的现金"],
+            data_set["对所有者或股东的分配"],
+            data_set["经营租赁折旧调整"],
+            data_set["资本化开发成本"]
+        )
+
+        data["经营活动产生的现金(FFO)"] = FFO(
+            data["EBITDA"],
+            data_set["利息费用"],
+            data_set["利息收入"],
+            data_set["所得税费用"],
+            data_set["经营租赁费用调整"],
+            data_set["经营租赁折旧调整"],
+            data_set["资本化利息"]
+        )
+
+        data["总负债"] = Total_debt(
+            data_set["短期借款"],
+            data_set["应付利息"],
+            data_set["一年内到期的长期借款"],
+            data_set["一年内到期的应付债券"],
+            data_set["其它流动负债短期应付债券"],
+            data_set["一年内应付融资租赁款"],
+            data_set["长期借款"],
+            data_set["应付债券"],
+            data_set["长期应付融资租赁款"],
+            data_set["重大合同及履行状况担保情况"],
+            data_set["货币资金"],
+            data_set["以公允价值计量且其变动计入当期损益的金融资产"],
+            data_set["其他货币资金"],
+            data_set["卖出回购金融资产款"],
+            data_set["特定行业或公司现金盈余不做调整扣除的部分加回"],
+            data_set["经营租赁调整"],
+            data_set["永续债"]
+        )
+
+        data["资本"] = Capital(
+            data_set["所有者权益合计"],
+            data_set["短期借款"],
+            data_set["应付利息"],
+            data_set["一年内到期的长期借款"],
+            data_set["一年内到期的应付债券"],
+            data_set["其它流动负债短期应付债券"],
+            data_set["一年内应付融资租赁款"],
+            data_set["长期借款"],
+            data_set["应付债券"],
+            data_set["长期应付融资租赁款"],
+            data_set["递延所得税负债"],
+            data_set["重大合同及履行状况担保情况"],
+            data_set["货币资金"],
+            data_set["以公允价值计量且其变动计入当期损益的金融资产"],
+            data_set["其他货币资金"],
+            data_set["卖出回购金融资产款"],
+            data_set["特定行业或公司现金盈余不做调整扣除的部分加回"],
+            data_set["经营租赁调整"],
+            data_set["永续债"]
+        )
+
+        data["EBITDA利润率"] = EBITDA_profit_rate(
+            data["EBITDA"],
+            data_set["营业收入"]
+        )
+
+        data["资本回报率"] = Capital_RR(
+            data["EBIT"],
+            data["资本"]
+        )
+
+        data["经营活动产生的资金/债务"] = Operating_cash_to_debt(
+            data["经营活动产生的现金(FFO)"],
+            data["总负债"]
+        )
+
+        data["债务/息税摊折前利润"] = debt_to_PBITA(
+            data["总负债"],
+            data["EBITDA"]
+        )
+
+        data["自由运营现金流/债务"] = FOCF_to_debt(
+            data["自由运营现金流(FOCF)"],
+            data["总负债"]
+        )
+
+        data["息税摊折前利润 / 利息支出"] = EBITDA_to_interest_expense(
+            data["EBITDA"],
+            data_set["财务费用"],
+            data_set["资本化利息"],
+            data_set["经营租赁的利息调整"]
+        )
+
+        data["营业收入"] = data_set["营业收入"]
+
+        data["总资产"] = data_set["总资产"]
+
+        data["所有者权益合计"] = data_set["所有者权益合计"]
+
+        return data
 
 
-            # 2023年年报数据
-        sheet_names = report_2023.keys()
-        sheet_count = 0
-        # print(sheet_names)
-        for sheet_name in sheet_names:
-            if sheet_name[-5:] == "资产负债表":
-                bal_sheet_2023 = report_2023[sheet_name]
-                sheet_count += 1
-                # print("资产负债表")
-            elif "资产负债表" in sheet_name:
-                bal_sheet_2023_con = report_2023[sheet_name]
-                sheet_count += 1
-                # print("资产负债表_con")
-            elif "利润表" in sheet_name:
-                profit_sheet_2023 = report_2023[sheet_name]
-                sheet_count += 1
-                # print("利润表")
-            elif "现金流量表" in sheet_name:
-                cash_sheet_2023 = report_2023[sheet_name]
-                sheet_count += 1
-                # print("现金流量表")
-            # print(sheet_name)
-            if sheet_count == 4:
-                break
-        if sheet_count != 4:
-            QMessageBox.warning(self, '警告', '2023年年报文件中表格数量不正确')
-            return
-
-
-            # 数据底稿
-        back_data = back_data
-
-# ----------------------------------原始数据赋值--------------------------------
-            # 2022
-        营业利润_2022 = profit_sheet_2022.iloc[(row_to_num(7)), col_to_num("G")]
-        财务费用_2022 = profit_sheet_2022.iloc[(row_to_num(33)), col_to_num("C")]
-        折旧费_2022 = back_data.iloc[(row_to_num(2)), col_to_num("C")]
-        公允价值变动_2022 = profit_sheet_2022.iloc[(row_to_num(44)), col_to_num("C")]
-        投资收益_2022 = profit_sheet_2022.iloc[(row_to_num(39)), col_to_num("C")]
-        取得投资收益收到的现金_2022 = cash_sheet_2022.iloc[(row_to_num(6)), col_to_num("H")]
-        政府补助_2022 = profit_sheet_2022.iloc[(row_to_num(9)), col_to_num("G")]
-        经营租赁费用调整_2022 = back_data.iloc[(row_to_num(3)), col_to_num("C")]
-        资本化开发成本_2022 = back_data.iloc[(row_to_num(4)), col_to_num("C")]
-        勘探费用_2022 = back_data.iloc[(row_to_num(5)), col_to_num("C")]
-        利息收入_2022 = profit_sheet_2022.iloc[(row_to_num(35)), col_to_num("C")]
-        对联营企业和合营企业的投资收益_2022 = profit_sheet_2022.iloc[(row_to_num(40)), col_to_num("C")]
-        经营租赁的利息调整_2022 = back_data.iloc[(row_to_num(6)), col_to_num("C")]
-        经营活动产生的现金流量净额_2022 = cash_sheet_2022.iloc[(row_to_num(32)), col_to_num("D")]
-        购建固定资产无形资产和其他长期资产支付的现金_2022 = cash_sheet_2022.iloc[(row_to_num(11)), col_to_num("H")]
-        收到其他与投资活动有关的现金附注利息部分_2022 = back_data.iloc[(row_to_num(7)), col_to_num("C")]
-        分配股利利润或偿付利息支付的现金_2022 = cash_sheet_2022.iloc[(row_to_num(25)), col_to_num("H")]
-        对所有者或股东的分配_2022 = back_data.iloc[(row_to_num(8)), col_to_num("C")]
-        经营租赁折旧调整_2022 = back_data.iloc[(row_to_num(9)), col_to_num("C")]
-        所得税费用_2022 = profit_sheet_2022.iloc[(row_to_num(12)), col_to_num("G")]
-        资本化利息_2022 = back_data.iloc[(row_to_num(10)), col_to_num("C")]
-        短期借款_2022 = bal_sheet_2022_con.iloc[(row_to_num(6)), col_to_num("D")]
-        应付利息_2022 = back_data.iloc[(row_to_num(11)), col_to_num("C")]
-        一年内到期的长期借款_2022 = back_data.iloc[(row_to_num(12)), col_to_num("C")]
-        一年内到期的应付债券_2022 = back_data.iloc[(row_to_num(13)), col_to_num("C")]
-        其它流动负债短期应付债券_2022 = back_data.iloc[(row_to_num(14)), col_to_num("C")]
-        一年内应付融资租赁款_2022 = back_data.iloc[(row_to_num(15)), col_to_num("C")]
-        长期借款_2022 = bal_sheet_2022_con.iloc[(row_to_num(37)), col_to_num("D")]
-        应付债券_2022 = bal_sheet_2022_con.iloc[(row_to_num(38)), col_to_num("D")]
-        长期应付融资租赁款_2022 = back_data.iloc[(row_to_num(16)), col_to_num("C")]
-        重大合同及履行状况担保情况_2022 = back_data.iloc[(row_to_num(17)), col_to_num("C")]
-        货币资金_2022 = bal_sheet_2022.iloc[(row_to_num(6)), col_to_num("D")]
-        以公允价值计量且其变动计入当期损益的金融资产_2022 = bal_sheet_2022.iloc[(row_to_num(10)), col_to_num("D")]
-        其他货币资金_2022 = back_data.iloc[(row_to_num(21)), col_to_num("C")]
-        卖出回购金融资产款_2022 = back_data.iloc[(row_to_num(18)), col_to_num("C")]
-        特定行业或公司现金盈余不做调整扣除的部分加回_2022 = back_data.iloc[(row_to_num(19)), col_to_num("C")]
-        经营租赁调整_2022 = back_data.iloc[(row_to_num(20)), col_to_num("C")]
-        永续债_2022 = bal_sheet_2022_con.iloc[(row_to_num(40)), col_to_num("D")]
-        所有者权益合计_2022 = bal_sheet_2022_con.iloc[(row_to_num(80)), col_to_num("D")]
-        递延所得税负债_2022 = bal_sheet_2022_con.iloc[(row_to_num(48)), col_to_num("D")]
-        营业收入_2022 = profit_sheet_2022.iloc[(row_to_num(5)), col_to_num("C")]
-        总资产_2022 = bal_sheet_2022.iloc[(row_to_num(62)), col_to_num("D")]
-        利息费用_2022 = profit_sheet_2022.iloc[(row_to_num(34)), col_to_num("C")]
-
-            # 2023
-        营业利润_2023 = profit_sheet_2023.iloc[(row_to_num(7)), col_to_num("I")]
-        财务费用_2023 = profit_sheet_2023.iloc[(row_to_num(33)), col_to_num("D")]
-        折旧费_2023 = back_data.iloc[(row_to_num(2)), col_to_num("B")]
-        公允价值变动_2023 = profit_sheet_2023.iloc[(row_to_num(44)), col_to_num("D")]
-        投资收益_2023 = profit_sheet_2023.iloc[(row_to_num(39)), col_to_num("D")]
-        取得投资收益收到的现金_2023 = cash_sheet_2023.iloc[(row_to_num(6)), col_to_num("H")]
-        政府补助_2023 = profit_sheet_2023.iloc[(row_to_num(9)), col_to_num("I")]
-        经营租赁费用调整_2023 = back_data.iloc[(row_to_num(3)), col_to_num("B")]
-        资本化开发成本_2023 = back_data.iloc[(row_to_num(4)), col_to_num("B")]
-        勘探费用_2023 = back_data.iloc[(row_to_num(5)), col_to_num("B")]
-        利息收入_2023 = profit_sheet_2023.iloc[(row_to_num(35)), col_to_num("D")]
-        对联营企业和合营企业的投资收益_2023 = profit_sheet_2023.iloc[(row_to_num(40)), col_to_num("D")]
-        经营租赁的利息调整_2023 = back_data.iloc[(row_to_num(6)), col_to_num("B")]
-        经营活动产生的现金流量净额_2023 = cash_sheet_2023.iloc[(row_to_num(32)), col_to_num("D")]
-        购建固定资产无形资产和其他长期资产支付的现金_2023 = cash_sheet_2023.iloc[(row_to_num(11)), col_to_num("H")]
-        收到其他与投资活动有关的现金附注利息部分_2023 = back_data.iloc[(row_to_num(7)), col_to_num("B")]
-        分配股利利润或偿付利息支付的现金_2023 = cash_sheet_2023.iloc[(row_to_num(25)), col_to_num("H")]
-        对所有者或股东的分配_2023 = back_data.iloc[(row_to_num(8)), col_to_num("B")]
-        经营租赁折旧调整_2023 = back_data.iloc[(row_to_num(9)), col_to_num("B")]
-        所得税费用_2023 = profit_sheet_2023.iloc[(row_to_num(12)), col_to_num("I")]
-        资本化利息_2023 = back_data.iloc[(row_to_num(10)), col_to_num("B")]
-        短期借款_2023 = bal_sheet_2023_con.iloc[(row_to_num(6)), col_to_num("D")]
-        应付利息_2023 = back_data.iloc[(row_to_num(11)), col_to_num("B")]
-        一年内到期的长期借款_2023 = back_data.iloc[(row_to_num(12)), col_to_num("B")]
-        一年内到期的应付债券_2023 = back_data.iloc[(row_to_num(13)), col_to_num("B")]
-        其它流动负债短期应付债券_2023 = back_data.iloc[(row_to_num(14)), col_to_num("B")]
-        一年内应付融资租赁款_2023 = back_data.iloc[(row_to_num(15)), col_to_num("B")]
-        长期借款_2023 = bal_sheet_2023_con.iloc[(row_to_num(37)), col_to_num("D")]
-        应付债券_2023 = bal_sheet_2023_con.iloc[(row_to_num(38)), col_to_num("D")]
-        长期应付融资租赁款_2023 = back_data.iloc[(row_to_num(16)), col_to_num("B")]
-        重大合同及履行状况担保情况_2023 = back_data.iloc[(row_to_num(17)), col_to_num("B")]
-        货币资金_2023 = bal_sheet_2023.iloc[(row_to_num(6)), col_to_num("D")]
-        以公允价值计量且其变动计入当期损益的金融资产_2023 = bal_sheet_2023.iloc[(row_to_num(10)), col_to_num("D")]
-        其他货币资金_2023 = back_data.iloc[(row_to_num(21)), col_to_num("B")]
-        卖出回购金融资产款_2023 = back_data.iloc[(row_to_num(18)), col_to_num("C")]
-        特定行业或公司现金盈余不做调整扣除的部分加回_2023 = back_data.iloc[(row_to_num(19)), col_to_num("B")]
-        经营租赁调整_2023 = back_data.iloc[(row_to_num(20)), col_to_num("B")]
-        永续债_2023 = bal_sheet_2023_con.iloc[(row_to_num(40)), col_to_num("D")]
-        所有者权益合计_2023 = bal_sheet_2023_con.iloc[(row_to_num(80)), col_to_num("D")]
-        递延所得税负债_2023 = bal_sheet_2023_con.iloc[(row_to_num(48)), col_to_num("D")]
-        营业收入_2023 = profit_sheet_2023.iloc[(row_to_num(5)), col_to_num("D")]
-        总资产_2023 = bal_sheet_2023.iloc[(row_to_num(62)), col_to_num("D")]
-        利息费用_2023 = profit_sheet_2023.iloc[(row_to_num(34)), col_to_num("D")]
-
-
-            # 数据打磨
-        data_set = {
-            "营业利润_2022": 营业利润_2022, "财务费用_2022": 财务费用_2022, "折旧费_2022": 折旧费_2022, "公允价值变动_2022": 公允价值变动_2022, "投资收益_2022": 投资收益_2022, "取得投资收益收到的现金_2022": 取得投资收益收到的现金_2022, "政府补助_2022": 政府补助_2022, "经营租赁费用调整_2022": 经营租赁费用调整_2022, "资本化开发成本_2022": 资本化开发成本_2022, "勘探费用_2022": 勘探费用_2022,
-            "利息收入_2022": 利息收入_2022, "对联营企业和合营企业的投资收益_2022": 对联营企业和合营企业的投资收益_2022, "经营租赁的利息调整_2022": 经营租赁的利息调整_2022, "经营活动产生的现金流量净额_2022": 经营活动产生的现金流量净额_2022, "购建固定资产无形资产和其他长期资产支付的现金_2022": 购建固定资产无形资产和其他长期资产支付的现金_2022, "收到其他与投资活动有关的现金附注利息部分_2022": 收到其他与投资活动有关的现金附注利息部分_2022, "分配股利利润或偿付利息支付的现金_2022": 分配股利利润或偿付利息支付的现金_2022, "对所有者或股东的分配_2022": 对所有者或股东的分配_2022, "经营租赁折旧调整_2022": 经营租赁折旧调整_2022, "所得税费用_2022": 所得税费用_2022, "资本化利息_2022": 资本化利息_2022,
-            "短期借款_2022": 短期借款_2022, "应付利息_2022": 应付利息_2022, "一年内到期的长期借款_2022": 一年内到期的长期借款_2022, "一年内到期的应付债券_2022": 一年内到期的应付债券_2022, "其它流动负债短期应付债券_2022": 其它流动负债短期应付债券_2022, "一年内应付融资租赁款_2022": 一年内应付融资租赁款_2022, "长期借款_2022": 长期借款_2022, "应付债券_2022": 应付债券_2022, "长期应付融资租赁款_2022": 长期应付融资租赁款_2022, "重大合同及履行状况担保情况_2022": 重大合同及履行状况担保情况_2022, "货币资金_2022": 货币资金_2022, "以公允价值计量且其变动计入当期损益的金融资产_2022": 以公允价值计量且其变动计入当期损益的金融资产_2022, "其他货币资金_2022": 其他货币资金_2022, "卖出回购金融资产款_2022": 卖出回购金融资产款_2022, 
-            "特定行业或公司现金盈余不做调整扣除的部分加回_2022": 特定行业或公司现金盈余不做调整扣除的部分加回_2022, "经营租赁调整_2022": 经营租赁调整_2022, "永续债_2022": 永续债_2022, "所有者权益合计_2022": 所有者权益合计_2022, "递延所得税负债_2022": 递延所得税负债_2022, "营业收入_2022": 营业收入_2022, "总资产_2022": 总资产_2022, "利息费用_2022": 利息费用_2022,
-            "营业利润_2023": 营业利润_2023, "财务费用_2023": 财务费用_2023, "折旧费_2023": 折旧费_2023, "公允价值变动_2023": 公允价值变动_2023, "投资收益_2023": 投资收益_2023, "取得投资收益收到的现金_2023": 取得投资收益收到的现金_2023, "政府补助_2023": 政府补助_2023, "经营租赁费用调整_2023": 经营租赁费用调整_2023, "资本化开发成本_2023": 资本化开发成本_2023, "勘探费用_2023": 勘探费用_2023,
-            "利息收入_2023": 利息收入_2023, "对联营企业和合营企业的投资收益_2023": 对联营企业和合营企业的投资收益_2023, "经营租赁的利息调整_2023": 经营租赁的利息调整_2023, "经营活动产生的现金流量净额_2023": 经营活动产生的现金流量净额_2023, "购建固定资产无形资产和其他长期资产支付的现金_2023": 购建固定资产无形资产和其他长期资产支付的现金_2023, "收到其他与投资活动有关的现金附注利息部分_2023": 收到其他与投资活动有关的现金附注利息部分_2023, "分配股利利润或偿付利息支付的现金_2023": 分配股利利润或偿付利息支付的现金_2023, "对所有者或股东的分配_2023": 对所有者或股东的分配_2023, "经营租赁折旧调整_2023": 经营租赁折旧调整_2023, "所得税费用_2023": 所得税费用_2023, "资本化利息_2023": 资本化利息_2023,
-            "短期借款_2023": 短期借款_2023, "应付利息_2023": 应付利息_2023, "一年内到期的长期借款_2023": 一年内到期的长期借款_2023, "一年内到期的应付债券_2023": 一年内到期的应付债券_2023, "其它流动负债短期应付债券_2023": 其它流动负债短期应付债券_2023, "一年内应付融资租赁款_2023": 一年内应付融资租赁款_2023, "长期借款_2023": 长期借款_2023, "应付债券_2023": 应付债券_2023, "长期应付融资租赁款_2023": 长期应付融资租赁款_2023, "重大合同及履行状况担保情况_2023": 重大合同及履行状况担保情况_2023, "货币资金_2023": 货币资金_2023, "以公允价值计量且其变动计入当期损益的金融资产_2023": 以公允价值计量且其变动计入当期损益的金融资产_2023, "其他货币资金_2023": 其他货币资金_2023, "卖出回购金融资产款_2023": 卖出回购金融资产款_2023,
-            "特定行业或公司现金盈余不做调整扣除的部分加回_2023": 特定行业或公司现金盈余不做调整扣除的部分加回_2023, "经营租赁调整_2023": 经营租赁调整_2023, "永续债_2023": 永续债_2023, "所有者权益合计_2023": 所有者权益合计_2023, "递延所得税负债_2023": 递延所得税负债_2023, "营业收入_2023": 营业收入_2023, "总资产_2023": 总资产_2023, "利息费用_2023": 利息费用_2023
+    def extract_values_2021(self, sheets, back_data):
+        return {
+            "营业利润": sheets["利润表"].iloc[row_to_num(7), col_to_num("G")],
+            "财务费用": sheets["利润表"].iloc[row_to_num(33), col_to_num("C")],
+            "折旧费": back_data.iloc[row_to_num(2), col_to_num("D")],
+            "公允价值变动": sheets["利润表"].iloc[row_to_num(44), col_to_num("C")],
+            "投资收益": sheets["利润表"].iloc[row_to_num(39), col_to_num("C")],
+            "取得投资收益收到的现金": sheets["现金流量表"].iloc[row_to_num(6), col_to_num("H")],
+            "政府补助": sheets["利润表"].iloc[row_to_num(9), col_to_num("G")],
+            "经营租赁费用调整": back_data.iloc[row_to_num(3), col_to_num("D")],
+            "资本化开发成本": back_data.iloc[row_to_num(4), col_to_num("D")],
+            "勘探费用": back_data.iloc[row_to_num(5), col_to_num("D")],
+            "利息收入": sheets["利润表"].iloc[row_to_num(35), col_to_num("C")],
+            "对联营企业和合营企业的投资收益": sheets["利润表"].iloc[row_to_num(40), col_to_num("C")],
+            "经营租赁的利息调整": back_data.iloc[row_to_num(6), col_to_num("D")],
+            "经营活动产生的现金流量净额": sheets["现金流量表"].iloc[row_to_num(32), col_to_num("D")],
+            "购建固定资产无形资产和其他长期资产支付的现金": sheets["现金流量表"].iloc[row_to_num(11), col_to_num("H")],
+            "收到其他与投资活动有关的现金附注利息部分": back_data.iloc[row_to_num(7), col_to_num("D")],
+            "分配股利利润或偿付利息支付的现金": sheets["现金流量表"].iloc[row_to_num(25), col_to_num("H")],
+            "对所有者或股东的分配": back_data.iloc[row_to_num(8), col_to_num("D")],
+            "经营租赁折旧调整": back_data.iloc[row_to_num(9), col_to_num("D")],
+            "所得税费用": sheets["利润表"].iloc[row_to_num(12), col_to_num("G")],
+            "资本化利息": back_data.iloc[row_to_num(10), col_to_num("D")],
+            "短期借款": sheets["资产负债表_con"].iloc[row_to_num(6), col_to_num("D")],
+            "应付利息": back_data.iloc[row_to_num(11), col_to_num("D")],
+            "一年内到期的长期借款": back_data.iloc[row_to_num(12), col_to_num("D")],
+            "一年内到期的应付债券": back_data.iloc[row_to_num(13), col_to_num("D")],
+            "其它流动负债短期应付债券": back_data.iloc[row_to_num(14), col_to_num("D")],
+            "一年内应付融资租赁款": back_data.iloc[row_to_num(15), col_to_num("D")],
+            "长期借款": sheets["资产负债表_con"].iloc[row_to_num(37), col_to_num("D")],
+            "应付债券": sheets["资产负债表_con"].iloc[row_to_num(38), col_to_num("D")],
+            "长期应付融资租赁款": back_data.iloc[row_to_num(16), col_to_num("D")],
+            "重大合同及履行状况担保情况": back_data.iloc[row_to_num(17), col_to_num("D")],
+            "货币资金": sheets["资产负债表"].iloc[row_to_num(6), col_to_num("D")],
+            "以公允价值计量且其变动计入当期损益的金融资产": sheets["资产负债表"].iloc[row_to_num(10), col_to_num("D")],
+            "其他货币资金": back_data.iloc[row_to_num(21), col_to_num("D")],
+            "卖出回购金融资产款": back_data.iloc[row_to_num(18), col_to_num("D")],
+            "特定行业或公司现金盈余不做调整扣除的部分加回": back_data.iloc[row_to_num(19), col_to_num("D")],
+            "经营租赁调整": back_data.iloc[row_to_num(20), col_to_num("D")],
+            "永续债": sheets["资产负债表_con"].iloc[row_to_num(40), col_to_num("D")],
+            "所有者权益合计": sheets["资产负债表_con"].iloc[row_to_num(80), col_to_num("D")],
+            "递延所得税负债": sheets["资产负债表_con"].iloc[row_to_num(48), col_to_num("D")],
+            "营业收入": sheets["利润表"].iloc[row_to_num(5), col_to_num("C")],
+            "总资产": sheets["资产负债表"].iloc[row_to_num(61), col_to_num("D")],
+            "利息费用": sheets["利润表"].iloc[row_to_num(34), col_to_num("C")]
         }
 
-                # 将所有空着的数据填充为0
-        for i in data_set:
-            if str(data_set[i]) == "nan":
-                data_set[i] = 0
-            elif type(data_set[i]) == str:
-                QMessageBox.warning(self, '警告', f'数据{data_set[i]}不是数字, 请检查数据是否对应正确')
-                return
 
-#  ------------------------------最终有用数据赋值--------------------------------
-        
-        # 数据分配----------------------------
-            # 建立字典
-        raw_data_2022 = {"EBITDA": 0,
-                        "EBIT": 0,
-                        "自由运营现金流(FOCF)": 0,
-                        "经营活动产生的现金(FFO)": 0,
-                        "总负债": 0,
-                        "资本": 0,
-                        "EBITDA利润率": 0,
-                        "资本回报率": 0,
-                        "经营活动产生的资金/债务": 0,
-                        "债务/息税摊折前利润": 0,
-                        "自由运营现金流/债务": 0,
-                        "息税摊折前利润 / 利息支出": 0
-                        }
+    def extract_values_2022(self, sheets, back_data):
+        return {
+            "营业利润": sheets["利润表"].iloc[row_to_num(7), col_to_num("G")],
+            "财务费用": sheets["利润表"].iloc[row_to_num(33), col_to_num("C")],
+            "折旧费": back_data.iloc[row_to_num(2), col_to_num("C")],
+            "公允价值变动": sheets["利润表"].iloc[row_to_num(44), col_to_num("C")],
+            "投资收益": sheets["利润表"].iloc[row_to_num(39), col_to_num("C")],
+            "取得投资收益收到的现金": sheets["现金流量表"].iloc[row_to_num(6), col_to_num("H")],
+            "政府补助": sheets["利润表"].iloc[row_to_num(9), col_to_num("G")],
+            "经营租赁费用调整": back_data.iloc[row_to_num(3), col_to_num("C")],
+            "资本化开发成本": back_data.iloc[row_to_num(4), col_to_num("C")],
+            "勘探费用": back_data.iloc[row_to_num(5), col_to_num("C")],
+            "利息收入": sheets["利润表"].iloc[row_to_num(35), col_to_num("C")],
+            "对联营企业和合营企业的投资收益": sheets["利润表"].iloc[row_to_num(40), col_to_num("C")],
+            "经营租赁的利息调整": back_data.iloc[row_to_num(6), col_to_num("C")],
+            "经营活动产生的现金流量净额": sheets["现金流量表"].iloc[row_to_num(32), col_to_num("D")],
+            "购建固定资产无形资产和其他长期资产支付的现金": sheets["现金流量表"].iloc[row_to_num(11), col_to_num("H")],
+            "收到其他与投资活动有关的现金附注利息部分": back_data.iloc[row_to_num(7), col_to_num("C")],
+            "分配股利利润或偿付利息支付的现金": sheets["现金流量表"].iloc[row_to_num(25), col_to_num("H")],
+            "对所有者或股东的分配": back_data.iloc[row_to_num(8), col_to_num("C")],
+            "经营租赁折旧调整": back_data.iloc[row_to_num(9), col_to_num("C")],
+            "所得税费用": sheets["利润表"].iloc[row_to_num(12), col_to_num("G")],
+            "资本化利息": back_data.iloc[row_to_num(10), col_to_num("C")],
+            "短期借款": sheets["资产负债表_con"].iloc[row_to_num(6), col_to_num("D")],
+            "应付利息": back_data.iloc[row_to_num(11), col_to_num("C")],
+            "一年内到期的长期借款": back_data.iloc[row_to_num(12), col_to_num("C")],
+            "一年内到期的应付债券": back_data.iloc[row_to_num(13), col_to_num("C")],
+            "其它流动负债短期应付债券": back_data.iloc[row_to_num(14), col_to_num("C")],
+            "一年内应付融资租赁款": back_data.iloc[row_to_num(15), col_to_num("C")],
+            "长期借款": sheets["资产负债表_con"].iloc[row_to_num(37), col_to_num("D")],
+            "应付债券": sheets["资产负债表_con"].iloc[row_to_num(38), col_to_num("D")],
+            "长期应付融资租赁款": back_data.iloc[row_to_num(16), col_to_num("C")],
+            "重大合同及履行状况担保情况": back_data.iloc[row_to_num(17), col_to_num("C")],
+            "货币资金": sheets["资产负债表"].iloc[row_to_num(6), col_to_num("D")],
+            "以公允价值计量且其变动计入当期损益的金融资产": sheets["资产负债表"].iloc[row_to_num(10), col_to_num("D")],
+            "其他货币资金": back_data.iloc[row_to_num(21), col_to_num("C")],
+            "卖出回购金融资产款": back_data.iloc[row_to_num(18), col_to_num("C")],
+            "特定行业或公司现金盈余不做调整扣除的部分加回": back_data.iloc[row_to_num(19), col_to_num("C")],
+            "经营租赁调整": back_data.iloc[row_to_num(20), col_to_num("C")],
+            "永续债": sheets["资产负债表_con"].iloc[row_to_num(40), col_to_num("D")],
+            "所有者权益合计": sheets["资产负债表_con"].iloc[row_to_num(80), col_to_num("D")],
+            "递延所得税负债": sheets["资产负债表_con"].iloc[row_to_num(48), col_to_num("D")],
+            "营业收入": sheets["利润表"].iloc[row_to_num(5), col_to_num("C")],
+            "总资产": sheets["资产负债表"].iloc[row_to_num(62), col_to_num("D")],
+            "利息费用": sheets["利润表"].iloc[row_to_num(34), col_to_num("C")]
+        }
 
-        raw_data_2023 = {"EBITDA": 0,
-                        "EBIT": 0,
-                        "自由运营现金流(FOCF)": 0,
-                        "经营活动产生的现金(FFO)": 0,
-                        "总负债": 0,
-                        "资本": 0,
-                        "EBITDA利润率": 0,
-                        "资本回报率": 0,
-                        "经营活动产生的资金/债务": 0,
-                        "债务/息税摊折前利润": 0,
-                        "自由运营现金流/债务": 0,
-                        "息税摊折前利润 / 利息支出": 0
-                        }
-        # 数据赋值 -------------------------------
-        raw_data_2022["EBITDA"] = EBITDA(
-            data_set["营业利润_2022"],
-            data_set["财务费用_2022"],
-            data_set["折旧费_2022"],
-            data_set["公允价值变动_2022"],
-            data_set["投资收益_2022"],
-            data_set["取得投资收益收到的现金_2022"],
-            data_set["政府补助_2022"],
-            data_set["经营租赁费用调整_2022"],
-            data_set["资本化开发成本_2022"],
-            data_set["勘探费用_2022"]
-        )
+    def extract_values_2023(self, sheets, back_data):
+        return {
+            # 类似的处理逻辑，用适当的列和行号
+            "营业利润": sheets["利润表"].iloc[row_to_num(7), col_to_num("I")],
+            "财务费用": sheets["利润表"].iloc[row_to_num(33), col_to_num("D")],
+            "折旧费": back_data.iloc[row_to_num(2), col_to_num("B")],
+            "公允价值变动": sheets["利润表"].iloc[row_to_num(44), col_to_num("D")],
+            "投资收益": sheets["利润表"].iloc[row_to_num(39), col_to_num("D")],
+            "取得投资收益收到的现金": sheets["现金流量表"].iloc[row_to_num(6), col_to_num("H")],
+            "政府补助": sheets["利润表"].iloc[row_to_num(9), col_to_num("I")],
+            "经营租赁费用调整": back_data.iloc[row_to_num(3), col_to_num("B")],
+            "资本化开发成本": back_data.iloc[row_to_num(4), col_to_num("B")],
+            "勘探费用": back_data.iloc[row_to_num(5), col_to_num("B")],
+            "利息收入": sheets["利润表"].iloc[row_to_num(35), col_to_num("D")],
+            "对联营企业和合营企业的投资收益": sheets["利润表"].iloc[row_to_num(40), col_to_num("D")],
+            "经营租赁的利息调整": back_data.iloc[row_to_num(6), col_to_num("B")],
+            "经营活动产生的现金流量净额": sheets["现金流量表"].iloc[row_to_num(32), col_to_num("D")],
+            "购建固定资产无形资产和其他长期资产支付的现金": sheets["现金流量表"].iloc[row_to_num(11), col_to_num("H")],
+            "收到其他与投资活动有关的现金附注利息部分": back_data.iloc[row_to_num(7), col_to_num("B")],
+            "分配股利利润或偿付利息支付的现金": sheets["现金流量表"].iloc[row_to_num(25), col_to_num("H")],
+            "对所有者或股东的分配": back_data.iloc[row_to_num(8), col_to_num("B")],
+            "经营租赁折旧调整": back_data.iloc[row_to_num(9), col_to_num("B")],
+            "所得税费用": sheets["利润表"].iloc[row_to_num(12), col_to_num("I")],
+            "资本化利息": back_data.iloc[row_to_num(10), col_to_num("B")],
+            "短期借款": sheets["资产负债表_con"].iloc[row_to_num(6), col_to_num("D")],
+            "应付利息": back_data.iloc[row_to_num(11), col_to_num("B")],
+            "一年内到期的长期借款": back_data.iloc[row_to_num(12), col_to_num("B")],
+            "一年内到期的应付债券": back_data.iloc[row_to_num(13), col_to_num("B")],
+            "其它流动负债短期应付债券": back_data.iloc[row_to_num(14), col_to_num("B")],
+            "一年内应付融资租赁款": back_data.iloc[row_to_num(15), col_to_num("B")],
+            "长期借款": sheets["资产负债表_con"].iloc[row_to_num(37), col_to_num("D")],
+            "应付债券": sheets["资产负债表_con"].iloc[row_to_num(38), col_to_num("D")],
+            "长期应付融资租赁款": back_data.iloc[row_to_num(16), col_to_num("B")],
+            "重大合同及履行状况担保情况": back_data.iloc[row_to_num(17), col_to_num("B")],
+            "货币资金": sheets["资产负债表"].iloc[row_to_num(6), col_to_num("D")],
+            "以公允价值计量且其变动计入当期损益的金融资产": sheets["资产负债表"].iloc[row_to_num(10), col_to_num("D")],
+            "其他货币资金": back_data.iloc[row_to_num(21), col_to_num("B")],
+            "卖出回购金融资产款": back_data.iloc[row_to_num(18), col_to_num("C")],
+            "特定行业或公司现金盈余不做调整扣除的部分加回": back_data.iloc[row_to_num(19), col_to_num("B")],
+            "经营租赁调整": back_data.iloc[row_to_num(20), col_to_num("B")],
+            "永续债": sheets["资产负债表_con"].iloc[row_to_num(40), col_to_num("D")],
+            "所有者权益合计": sheets["资产负债表_con"].iloc[row_to_num(80), col_to_num("D")],
+            "递延所得税负债": sheets["资产负债表_con"].iloc[row_to_num(48), col_to_num("D")],
+            "营业收入": sheets["利润表"].iloc[row_to_num(5), col_to_num("D")],
+            "总资产": sheets["资产负债表"].iloc[row_to_num(62), col_to_num("D")],
+            "利息费用": sheets["利润表"].iloc[row_to_num(34), col_to_num("D")]
+        }
 
-        raw_data_2022["EBIT"] = EBIT(
-            data_set["营业利润_2022"],
-            data_set["财务费用_2022"],
-            data_set["利息收入_2022"],
-            data_set["公允价值变动_2022"],
-            data_set["投资收益_2022"],
-            data_set["对联营企业和合营企业的投资收益_2022"],
-            data_set["政府补助_2022"],
-            data_set["经营租赁的利息调整_2022"]
-        )
+    def write_to_excel(self, data_2021, data_2022, data_2023):
+        try:
+            report = load_workbook(self.paths["target_path"])
+            sheet = report["Inputs"]
+            print("Writing to Excel...")
+            # 将数据写入Excel
+                # 逐年分析
+            sheet["D46"] = data_2023["EBITDA利润率"]
+            sheet["E46"] = data_2022["EBITDA利润率"]
+            sheet["F46"] = data_2021["EBITDA利润率"]
+            sheet["D47"] = data_2023["资本回报率"]
+            sheet["E47"] = data_2022["资本回报率"]
+            sheet["F47"] = data_2021["资本回报率"]
+            sheet["D48"] = data_2023["营业收入"]
+            sheet["E48"] = data_2022["营业收入"]
+            sheet["F48"] = data_2021["营业收入"]
+            sheet["D49"] = data_2023["总资产"]
+            sheet["E49"] = data_2022["总资产"]
+            sheet["F49"] = data_2021["总资产"]
+            sheet["D54"] = data_2023["经营活动产生的资金/债务"]
+            sheet["E54"] = data_2022["经营活动产生的资金/债务"]
+            sheet["F54"] = data_2021["经营活动产生的资金/债务"]
+            sheet["D55"] = data_2023["债务/息税摊折前利润"]
+            sheet["E55"] = data_2022["债务/息税摊折前利润"]
+            sheet["F55"] = data_2021["债务/息税摊折前利润"]
+            sheet["D56"] = data_2023["自由运营现金流/债务"]
+            sheet["E56"] = data_2022["自由运营现金流/债务"]
+            sheet["F56"] = data_2021["自由运营现金流/债务"]
+            sheet["D57"] = data_2023["息税摊折前利润 / 利息支出"]
+            sheet["E57"] = data_2022["息税摊折前利润 / 利息支出"]
+            sheet["F57"] = data_2021["息税摊折前利润 / 利息支出"]
+            sheet["D58"] = data_2023["经营活动产生的现金(FFO)"]
+            sheet["E58"] = data_2022["经营活动产生的现金(FFO)"]
+            sheet["F58"] = data_2021["经营活动产生的现金(FFO)"]
+            sheet["D59"] = data_2023["总负债"]
+            sheet["E59"] = data_2022["总负债"]
+            sheet["F59"] = data_2021["总负债"]
+            sheet["D60"] = data_2023["EBITDA"]
+            sheet["E60"] = data_2022["EBITDA"]
+            sheet["F60"] = data_2021["EBITDA"]
+            sheet["D63"] = data_2023["营业收入"]
+            sheet["E63"] = data_2022["营业收入"]
+            sheet["F63"] = data_2021["营业收入"]
+            sheet["D64"] = data_2023["总资产"]
+            sheet["E64"] = data_2022["总资产"]
+            sheet["F64"] = data_2021["总资产"]
 
-        raw_data_2022["自由运营现金流(FOCF)"] = FOCF(
-            data_set["经营活动产生的现金流量净额_2022"],
-            data_set["购建固定资产无形资产和其他长期资产支付的现金_2022"],
-            data_set["取得投资收益收到的现金_2022"],
-            data_set["收到其他与投资活动有关的现金附注利息部分_2022"],
-            data_set["分配股利利润或偿付利息支付的现金_2022"],
-            data_set["对所有者或股东的分配_2022"],
-            data_set["经营租赁折旧调整_2022"],
-            data_set["资本化开发成本_2022"]
-        )
+                # 三年平均
+            for i in range(46, 65):
+                if i not in [50, 51, 52, 53, 61, 62]:
+                    sheet[f"B{i}"] = f"=AVERAGE(D{i}:F{i})"
+            print("赋值完成")
 
-        raw_data_2022["经营活动产生的现金(FFO)"] = FFO(
-            raw_data_2022["EBITDA"],
-            data_set["利息费用_2022"],
-            data_set["利息收入_2022"],
-            data_set["所得税费用_2022"],
-            data_set["经营租赁费用调整_2022"],
-            data_set["经营租赁折旧调整_2022"],
-            data_set["资本化利息_2022"]
-        )
+            # 检查特殊情况并设置为 "NM"
+            for i in sheet["B46:G64"]:
+                for j in i:
+                    # print(j.value)
+                    if str(j.value) == "inf" or str(j.value) == "-inf" or str(j.value) == "nan":
+                        j.value = "NM"
 
-        raw_data_2022["总负债"] = Total_debt(
-            data_set["短期借款_2022"],
-            data_set["应付利息_2022"],
-            data_set["一年内到期的长期借款_2022"],
-            data_set["一年内到期的应付债券_2022"],
-            data_set["其它流动负债短期应付债券_2022"],
-            data_set["一年内应付融资租赁款_2022"],
-            data_set["长期借款_2022"],
-            data_set["应付债券_2022"],
-            data_set["长期应付融资租赁款_2022"],
-            data_set["重大合同及履行状况担保情况_2022"],
-            data_set["货币资金_2022"],
-            data_set["以公允价值计量且其变动计入当期损益的金融资产_2022"],
-            data_set["其他货币资金_2022"],
-            data_set["卖出回购金融资产款_2022"],
-            data_set["特定行业或公司现金盈余不做调整扣除的部分加回_2022"],
-            data_set["经营租赁调整_2022"],
-            data_set["永续债_2022"]
-        )
+            if data_2021["经营活动产生的现金(FFO)"] < 0 and data_2021["总负债"] < 0:
+                sheet["F54"] = "NM"
+            if data_2021["总负债"] < 0 and data_2021["EBITDA"] < 0:
+                sheet["F55"] = "NM"
+            if data_2021["自由运营现金流(FOCF)"] < 0 and data_2021["总负债"] < 0:
+                sheet["F56"] = "NM"
 
-        raw_data_2022["资本"] = Capital(
-            data_set["所有者权益合计_2022"],
-            data_set["短期借款_2022"],
-            data_set["应付利息_2022"],
-            data_set["一年内到期的长期借款_2022"],
-            data_set["一年内到期的应付债券_2022"],
-            data_set["其它流动负债短期应付债券_2022"],
-            data_set["一年内应付融资租赁款_2022"],
-            data_set["长期借款_2022"],
-            data_set["应付债券_2022"],
-            data_set["长期应付融资租赁款_2022"],
-            data_set["递延所得税负债_2022"],
-            data_set["重大合同及履行状况担保情况_2022"],
-            data_set["货币资金_2022"],
-            data_set["以公允价值计量且其变动计入当期损益的金融资产_2022"],
-            data_set["其他货币资金_2022"],
-            data_set["卖出回购金融资产款_2022"],
-            data_set["特定行业或公司现金盈余不做调整扣除的部分加回_2022"],
-            data_set["经营租赁调整_2022"],
-            data_set["永续债_2022"]
-        )
+            if data_2022["经营活动产生的现金(FFO)"] < 0 and data_2022["总负债"] < 0:
+                sheet["E54"] = "NM"
+            if data_2022["总负债"] < 0 and data_2022["EBITDA"] < 0:
+                sheet["E55"] = "NM"
+            if data_2022["自由运营现金流(FOCF)"] < 0 and data_2022["总负债"] < 0:
+                sheet["E56"] = "NM"
 
-        raw_data_2022["EBITDA利润率"] = EBITDA_profit_rate(
-            raw_data_2022["EBITDA"],
-            data_set["营业收入_2022"]
-        )
+            if data_2023["经营活动产生的现金(FFO)"] < 0 and data_2023["总负债"] < 0:
+                sheet["D54"], sheet["B54"] = "NM", "NM"
+            if data_2023["总负债"] < 0 and data_2023["EBITDA"] < 0:
+                sheet["D55"], sheet["B55"] = "NM", "NM"
+            if data_2023["自由运营现金流(FOCF)"] < 0 and data_2023["总负债"] < 0:
+                sheet["D56"], sheet["B56"] = "NM", "NM"
+            print("特殊情况处理完成")
 
-        raw_data_2022["资本回报率"] = Capital_RR(
-            raw_data_2022["EBIT"],
-            raw_data_2022["资本"]
-        )
+            report.save(self.paths["target_path"])
 
-        raw_data_2022["经营活动产生的资金/债务"] = Operating_cash_to_debt(
-            raw_data_2022["经营活动产生的现金(FFO)"],
-            raw_data_2022["总负债"]
-        )
-
-        raw_data_2022["债务/息税摊折前利润"] = debt_to_PBITA(
-            raw_data_2022["总负债"],
-            raw_data_2022["EBITDA"]
-        )
-
-        raw_data_2022["自由运营现金流/债务"] = FOCF_to_debt(
-            raw_data_2022["自由运营现金流(FOCF)"],
-            raw_data_2022["总负债"]
-        )
-
-        raw_data_2022["息税摊折前利润 / 利息支出"] = EBITDA_to_interest_expense(
-            raw_data_2022["EBITDA"],
-            data_set["财务费用_2022"],
-            data_set["资本化利息_2022"],
-            data_set["经营租赁的利息调整_2022"]
-        )
-
-        raw_data_2023["EBITDA"] = EBITDA(
-            data_set["营业利润_2023"],
-            data_set["财务费用_2023"],
-            data_set["折旧费_2023"],
-            data_set["公允价值变动_2023"],
-            data_set["投资收益_2023"],
-            data_set["取得投资收益收到的现金_2023"],
-            data_set["政府补助_2023"],
-            data_set["经营租赁费用调整_2023"],
-            data_set["资本化开发成本_2023"],
-            data_set["勘探费用_2023"]
-        )
-
-        raw_data_2023["EBIT"] = EBIT(
-            data_set["营业利润_2023"],
-            data_set["财务费用_2023"],
-            data_set["利息收入_2023"],
-            data_set["公允价值变动_2023"],
-            data_set["投资收益_2023"],
-            data_set["对联营企业和合营企业的投资收益_2023"],
-            data_set["政府补助_2023"],
-            data_set["经营租赁的利息调整_2023"]
-        )
-
-        raw_data_2023["自由运营现金流(FOCF)"] = FOCF(
-            data_set["经营活动产生的现金流量净额_2023"],
-            data_set["购建固定资产无形资产和其他长期资产支付的现金_2023"],
-            data_set["取得投资收益收到的现金_2023"],
-            data_set["收到其他与投资活动有关的现金附注利息部分_2023"],
-            data_set["分配股利利润或偿付利息支付的现金_2023"],
-            data_set["对所有者或股东的分配_2023"],
-            data_set["经营租赁折旧调整_2023"],
-            data_set["资本化开发成本_2023"]
-        )
-
-        raw_data_2023["经营活动产生的现金(FFO)"] = FFO(
-            raw_data_2023["EBITDA"],
-            data_set["利息费用_2023"],
-            data_set["利息收入_2023"],
-            data_set["所得税费用_2023"],
-            data_set["经营租赁费用调整_2023"],
-            data_set["经营租赁折旧调整_2023"],
-            data_set["资本化利息_2023"]
-        )
-
-        raw_data_2023["总负债"] = Total_debt(
-            data_set["短期借款_2023"],
-            data_set["应付利息_2023"],
-            data_set["一年内到期的长期借款_2023"],
-            data_set["一年内到期的应付债券_2023"],
-            data_set["其它流动负债短期应付债券_2023"],
-            data_set["一年内应付融资租赁款_2023"],
-            data_set["长期借款_2023"],
-            data_set["应付债券_2023"],
-            data_set["长期应付融资租赁款_2023"],
-            data_set["重大合同及履行状况担保情况_2023"],
-            data_set["货币资金_2023"],
-            data_set["以公允价值计量且其变动计入当期损益的金融资产_2023"],
-            data_set["其他货币资金_2023"],
-            data_set["卖出回购金融资产款_2023"],
-            data_set["特定行业或公司现金盈余不做调整扣除的部分加回_2023"],
-            data_set["经营租赁调整_2023"],
-            data_set["永续债_2023"]
-        )
-
-        raw_data_2023["资本"] = Capital(
-            data_set["所有者权益合计_2023"],
-            data_set["短期借款_2023"],
-            data_set["应付利息_2023"],
-            data_set["一年内到期的长期借款_2023"],
-            data_set["一年内到期的应付债券_2023"],
-            data_set["其它流动负债短期应付债券_2023"],
-            data_set["一年内应付融资租赁款_2023"],
-            data_set["长期借款_2023"],
-            data_set["应付债券_2023"],
-            data_set["长期应付融资租赁款_2023"],
-            data_set["递延所得税负债_2023"],
-            data_set["重大合同及履行状况担保情况_2023"],
-            data_set["货币资金_2023"],
-            data_set["以公允价值计量且其变动计入当期损益的金融资产_2023"],
-            data_set["其他货币资金_2023"],
-            data_set["卖出回购金融资产款_2023"],
-            data_set["特定行业或公司现金盈余不做调整扣除的部分加回_2023"],
-            data_set["经营租赁调整_2023"],
-            data_set["永续债_2023"]
-        )
-
-        raw_data_2023["EBITDA利润率"] = EBITDA_profit_rate(
-            raw_data_2023["EBITDA"],
-            data_set["营业收入_2023"]
-        )
-
-        # 资本回报率计算
-        if (raw_data_2023["资本"] != 0 and 所有者权益合计_2022 != 0):
-            raw_data_2023["资本回报率"] = raw_data_2023["EBIT"] / ((raw_data_2023["资本"] + raw_data_2022["资本"])/2)
-
-        else:
-            raw_data_2023["资本回报率"] = Capital_RR(
-                raw_data_2023["EBIT"],
-                raw_data_2023["资本"]
-            )
-
-        raw_data_2023["经营活动产生的资金/债务"] = Operating_cash_to_debt(
-            raw_data_2023["经营活动产生的现金(FFO)"],
-            raw_data_2023["总负债"]
-        )
-
-        raw_data_2023["债务/息税摊折前利润"] = debt_to_PBITA(
-            raw_data_2023["总负债"],
-            raw_data_2023["EBITDA"]
-        )
-
-        raw_data_2023["自由运营现金流/债务"] = FOCF_to_debt(
-            raw_data_2023["自由运营现金流(FOCF)"],
-            raw_data_2023["总负债"]
-        )
-
-        raw_data_2023["息税摊折前利润 / 利息支出"] = EBITDA_to_interest_expense(
-            raw_data_2023["EBITDA"],
-            data_set["财务费用_2023"],
-            data_set["资本化利息_2023"],
-            data_set["经营租赁的利息调整_2023"]
-        )
-
-        # 输出数据 用于查看
-        print("--------2022年----------")
-        for i in raw_data_2022:
-            print(f"{i}: {raw_data_2022[i]}")
-
-        print("\n--------2023年----------")
-
-        for i in raw_data_2023:
-            print(f"{i}: {raw_data_2023[i]}")
-
-# -------------------------------写入数据------------------------------
-        report = load_workbook(report_path)
-        sheet = report["Inputs"]
-        sheet["D46"] = raw_data_2023["EBITDA利润率"]
-        sheet["E46"] = raw_data_2022["EBITDA利润率"]
-        sheet["D47"] = raw_data_2023["资本回报率"]
-        sheet["E47"] = raw_data_2022["资本回报率"]
-        sheet["D48"] = 营业收入_2023
-        sheet["E48"] = 营业收入_2022
-        sheet["D49"] = 总资产_2023
-        sheet["E49"] = 总资产_2022
-        sheet["D54"] = raw_data_2023["经营活动产生的资金/债务"]
-        sheet["E54"] = raw_data_2022["经营活动产生的资金/债务"]
-        sheet["D55"] = raw_data_2023["债务/息税摊折前利润"]
-        sheet["E55"] = raw_data_2022["债务/息税摊折前利润"]
-        sheet["D56"] = raw_data_2023["自由运营现金流/债务"]
-        sheet["E56"] = raw_data_2022["自由运营现金流/债务"]
-        sheet["D57"] = raw_data_2023["息税摊折前利润 / 利息支出"]
-        sheet["E57"] = raw_data_2022["息税摊折前利润 / 利息支出"]
-        sheet["D58"] = raw_data_2023["经营活动产生的现金(FFO)"]
-        sheet["E58"] = raw_data_2022["经营活动产生的现金(FFO)"]
-        sheet["D59"] = raw_data_2023["总负债"]
-        sheet["E59"] = raw_data_2022["总负债"]
-        sheet["D60"] = raw_data_2023["EBITDA"]
-        sheet["E60"] = raw_data_2022["EBITDA"]
-        sheet["D63"] = 营业收入_2023
-        sheet["E63"] = 营业收入_2022
-        sheet["D64"] = 总资产_2023
-        sheet["E64"] = 总资产_2022
-
-        sheet["B46"] = raw_data_2023["EBITDA利润率"]
-        sheet["B47"] = raw_data_2023["资本回报率"]
-        sheet["B48"] = 营业收入_2023
-        sheet["B49"] = 总资产_2023
-        sheet["B54"] = raw_data_2023["经营活动产生的资金/债务"]
-        sheet["B55"] = raw_data_2023["债务/息税摊折前利润"]
-        sheet["B56"] = raw_data_2023["自由运营现金流/债务"]
-        sheet["B57"] = raw_data_2023["息税摊折前利润 / 利息支出"]
-        sheet["B58"] = raw_data_2023["经营活动产生的现金(FFO)"]
-        sheet["B59"] = raw_data_2023["总负债"]
-        sheet["B60"] = raw_data_2023["EBITDA"]
-        sheet["B63"] = 营业收入_2023
-        sheet["B64"] = 总资产_2023
-
-        # 排查数据
-            # 如果发生以下任意一种情况，请将财务比率输入为 "NM"：
-                # a) 如果任何财务比率的分母为零；
-        for i in sheet["B46:E64"]:
-            for j in i:
-                # print(j.value)
-                if str(j.value) == "inf" or str(j.value) == "-inf" or str(j.value) == "nan":
-                    j.value = "NM"
-
-                # b) 如果任意财务比率的分子和分母均为负数。
-        if raw_data_2022["经营活动产生的现金(FFO)"] < 0 and raw_data_2022["总负债"] < 0:
-            sheet["E54"] = "NM"
-        if raw_data_2022["总负债"] < 0 and raw_data_2022["EBITDA"] < 0:
-            sheet["E55"] = "NM"
-        if raw_data_2022["自由运营现金流(FOCF)"] < 0 and raw_data_2022["总负债"] < 0:
-            sheet["E56"] = "NM"
-
-        if raw_data_2023["经营活动产生的现金(FFO)"] < 0 and raw_data_2023["总负债"] < 0:
-            sheet["D54"], sheet["B54"] = "NM", "NM"
-        if raw_data_2023["总负债"] < 0 and raw_data_2023["EBITDA"] < 0:
-            sheet["D55"], sheet["B55"] = "NM", "NM"
-        if raw_data_2023["自由运营现金流(FOCF)"] < 0 and raw_data_2023["总负债"] < 0:
-            sheet["D56"], sheet["B56"] = "NM", "NM"
-
-        print(政府补助_2022,)
-#  --------------------------------------结尾--------------------------------------------------
-
-        # 保存文件
-        report.save(report_path)
-        
-        # 弹出窗口表示完成
-        QMessageBox.information(self, "提示", "数据填充完成", QMessageBox.Yes)
-
-
-        print("总负债数据: ", "\n短期借款: " + str(短期借款_2023), "\n应付利息: " + str(应付利息_2023), "\n一年内到期的长期借款: " + str(一年内到期的长期借款_2023), "\n一年内到期的应付债券: " + str(一年内到期的应付债券_2023), "\n其它流动负债短期应付债券: " + str(其它流动负债短期应付债券_2023), "\n一年内应付融资租赁款: " + str(一年内应付融资租赁款_2023), "\n长期借款: " + str(长期借款_2023), "\n应付债券: " + str(应付债券_2023), "\n长期应付融资租赁款: " + str(长期应付融资租赁款_2023), "\n重大合同及履行状况担保情况: " + str(重大合同及履行状况担保情况_2023), "\n货币资金: " + str(货币资金_2023), "\n以公允价值计量且其变动计入当期损益的金融资产: " + str(以公允价值计量且其变动计入当期损益的金融资产_2023), "\n其他货币资金: " + str(其他货币资金_2023), "\n卖出回购金融资产款: " + str(卖出回购金融资产款_2023), "\n特定行业或公司现金盈余不做调整扣除的部分加回: " + str(特定行业或公司现金盈余不做调整扣除的部分加回_2023), "\n经营租赁调整: " + str(经营租赁调整_2023), "\n永续债: " + str(永续债_2023))
-        print("FFO数据: ", "\nEBITDA: " + str(raw_data_2023["EBITDA"]), "\n利息费用: " + str(利息费用_2023), "\n利息收入: " + str(利息收入_2023), "\n所得税费用: " + str(所得税费用_2023), "\n经营租赁费用调整: " + str(经营租赁费用调整_2023), "\n经营租赁折旧调整: " + str(经营租赁折旧调整_2023), "\n资本化利息: " + str(资本化利息_2023))
-        print("资本数据: ", "\n所有者权益合计: " + str(所有者权益合计_2023), "\n短期借款: " + str(短期借款_2023), "\n应付利息: " + str(应付利息_2023), "\n一年内到期的长期借款: " + str(一年内到期的长期借款_2023), "\n一年内到期的应付债券: " + str(一年内到期的应付债券_2023), "\n其它流动负债短期应付债券: " + str(其它流动负债短期应付债券_2023), "\n一年内应付融资租赁款: " + str(一年内应付融资租赁款_2023), "\n长期借款: " + str(长期借款_2023), "\n应付债券: " + str(应付债券_2023), "\n长期应付融资租赁款: " + str(长期应付融资租赁款_2023), "\n递延所得税负债: " + str(递延所得税负债_2023), "\n重大合同及履行状况担保情况: " + str(重大合同及履行状况担保情况_2023), "\n货币资金: " + str(货币资金_2023), "\n以公允价值计量且其变动计入当期损益的金融资产: " + str(以公允价值计量且其变动计入当期损益的金融资产_2023), "\n其他货币资金: " + str(其他货币资金_2023), "\n卖出回购金融资产款: " + str(卖出回购金融资产款_2023), "\n特定行业或公司现金盈余不做调整扣除的部分加回: " + str(特定行业或公司现金盈余不做调整扣除的部分加回_2023), "\n经营租赁调整: " + str(经营租赁调整_2023), "\n永续债: " + str(永续债_2023))
-        print(raw_data_2023["资本"], raw_data_2023["EBIT"])
-
-        # 自动打开文件
-        os.startfile(report_path)
-
-        # 重新初始化
-        Window.reset(self)
-
-    def reset(self):
-        # 参数初始化
-        self.report_2022_path = ""
-        self.report_2023_path = ""
-        self.back_data_path = ""
-        self.target_path = ""
-        self.count = 0
-        self.label_2022.setText(f'2022年年报路径: <font color="red">未选择</font>')
-        self.label_2023.setText(f'2023年年报路径: <font color="red">未选择</font>')
-        self.label_back_data.setText(f'数据底稿路径: <font color="red">未选择</font>')
-        self.label_target_path.setText(f'填入文件路径: <font color="red">未选择</font>')
-        
-# ------------------------------------函数定义-------------------------------------
-# excel里列的字母转数字
-def col_to_num(col_str):
-    num = 0
-    for i, c in enumerate(reversed(col_str)):
-        num += (ord(c) - ord('A') + 1) * (26 ** i)
-    return num - 1
-
-# excel里行的数字转换
-def row_to_num(num):
-    return int(num) - 2
+            QMessageBox.information(self, "提示", "数据填充完成", QMessageBox.Yes)
+            os.startfile(self.paths["target_path"])
+        except Exception as e:
+            QMessageBox.warning(self, '警告', f'文件写入失败: {str(e)}, 请确保填入文件没被打开')
 
 # 计算公式
 def EBITDA(营业利润, 财务费用, 折旧费, 公允价值变动, 投资收益, 取得投资收益收到的现金, 政府补助, 经营租赁费用调整, 资本化开发成本, 勘探费用):
@@ -739,7 +539,14 @@ def FOCF_to_debt(FOCF, 总负债):
 def EBITDA_to_interest_expense(EBITDA, 财务费用, 资本化利息, 经营租赁的利息调整):
     return EBITDA / (财务费用 + 资本化利息 + 经营租赁的利息调整)
 
-# ------------------------------------启动-------------------------------------
+def col_to_num(col_str):
+    num = 0
+    for i, c in enumerate(reversed(col_str)):
+        num += (ord(c) - ord('A') + 1) * (26 ** i)
+    return num - 1
+
+def row_to_num(num):
+    return int(num) - 2
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
