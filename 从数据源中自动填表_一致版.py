@@ -118,13 +118,27 @@ class Window(QWidget):
         if data_2021 is None or data_2022 is None or data_2023 is None:
             QMessageBox.warning(self, '警告', '年报文件中表格数量不正确')
             return
+        
 
         final_data_2021, detailed_data_2021 = self.calculate_data(data_2021, back_data, 2021)
         final_data_2022, detailed_data_2022 = self.calculate_data(data_2022, back_data, 2022)
         final_data_2023, detailed_data_2023 = self.calculate_data(data_2023, back_data, 2023)
 
+        # 修正数据----------------------------------
+            # 资本回报率取均值
+        if (final_data_2022["资本"]!=0) and (final_data_2021["所有者权益合计"]!=0):
+            final_data_2022["资本回报率"] = final_data_2022["EBIT"] / ((final_data_2022["资本"] + final_data_2021["资本"])/2)
+
+        if (final_data_2023["资本"]!=0) and (final_data_2022["所有者权益合计"]!=0):
+            final_data_2023["资本回报率"] = final_data_2023["EBIT"] / ((final_data_2023["资本"] + final_data_2022["资本"])/2)
+        # ----------------------------------------
+
+        total_data_2021 = {**final_data_2021, **detailed_data_2021}
+        total_data_2022 = {**final_data_2022, **detailed_data_2022}
+        total_data_2023 = {**final_data_2023, **detailed_data_2023}
+
         # 显示数据到滑动框
-        self.display_data(detailed_data_2023, detailed_data_2022, detailed_data_2021)
+        self.display_data(total_data_2023, total_data_2022, total_data_2021)
 
         self.write_to_excel(final_data_2021, final_data_2022, final_data_2023)
 
@@ -306,11 +320,13 @@ class Window(QWidget):
 
         return data, data_set
 
-    def display_data(self, data_2021, data_2022, data_2023):
+    def display_data(self, data_2023, data_2022, data_2021):
         row = 0
         col = 0
 
         years_data = [("2023年数据", data_2023), ("2022年数据", data_2022), ("2021年数据", data_2021)]
+        
+        
 
         for year_label, data in years_data:
             for key, value in data.items():
