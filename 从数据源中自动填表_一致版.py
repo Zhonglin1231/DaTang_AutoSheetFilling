@@ -1,6 +1,7 @@
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVBoxLayout, QLabel, QMessageBox, QScrollArea, QGridLayout, QHBoxLayout
+from PyQt5.QtCore import Qt
 import pandas as pd
 from openpyxl import load_workbook
 
@@ -17,11 +18,14 @@ class Window(QWidget):
         }
 
     def initUI(self):
-        self.setGeometry(700, 400, 800, 600)
+        self.setGeometry(700, 400, 1000, 500)
         self.setWindowTitle('自动填表生成器')
 
         # 创建主布局
-        main_layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
+
+        # 左侧文件选择布局
+        left_layout = QVBoxLayout()
 
         # 创建文件选择按钮布局
         file_selection_layout = QVBoxLayout()
@@ -29,23 +33,38 @@ class Window(QWidget):
         self.add_button(file_selection_layout, '选择2022年年报', self.select_file, "report_2022_path")
         self.add_button(file_selection_layout, '选择2023年年报', self.select_file, "report_2023_path")
         self.add_button(file_selection_layout, '选择数据底稿', self.select_file, "back_data_path")
-        self.add_button(file_selection_layout, '填入文件路径', self.select_file, "target_path")
+        self.add_button(file_selection_layout, '评级文件路径', self.select_file, "target_path")
 
-        file_selection_layout.addWidget(QLabel('--------↓--------', self))
+        file_selection_layout.addWidget(QLabel('--------↓--------', self), alignment=Qt.AlignCenter)
         self.add_button(file_selection_layout, '开始处理', self.startProcess)
+
+        # 创建一个水平滑动框来显示所有路径
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_content = QWidget(self.scroll_area)
+        self.scroll_layout = QVBoxLayout(self.scroll_content)
 
         self.labels = {
             "report_2021_path": QLabel('2021年年报路径: <font color="red">未选择</font>', self),
             "report_2022_path": QLabel('2022年年报路径: <font color="red">未选择</font>', self),
             "report_2023_path": QLabel('2023年年报路径: <font color="red">未选择</font>', self),
             "back_data_path": QLabel('数据底稿路径: <font color="red">未选择</font>', self),
-            "target_path": QLabel('填入文件路径: <font color="red">未选择</font>', self)
+            "target_path": QLabel('评级文件路径: <font color="red">未选择</font>', self)
         }
 
         for label in self.labels.values():
-            file_selection_layout.addWidget(label)
+            self.scroll_layout.addWidget(label)
 
-        main_layout.addLayout(file_selection_layout)
+        self.scroll_content.setLayout(self.scroll_layout)
+        self.scroll_area.setWidget(self.scroll_content)
+        file_selection_layout.addWidget(self.scroll_area)
+
+        left_layout.addLayout(file_selection_layout)
+
+        main_layout.addLayout(left_layout)
+
+        # 右侧布局
+        right_layout = QVBoxLayout()
 
         # 添加固定第一行的布局
         fixed_header_layout = QHBoxLayout()
@@ -54,7 +73,7 @@ class Window(QWidget):
         fixed_header_layout.addWidget(QLabel("<b>2022年数据</b>", self))
         fixed_header_layout.addWidget(QLabel("<b>2021年数据</b>", self))
 
-        main_layout.addLayout(fixed_header_layout)
+        right_layout.addLayout(fixed_header_layout)
 
         # 添加滑动框
         self.scroll = QScrollArea(self)
@@ -62,11 +81,12 @@ class Window(QWidget):
         self.scroll_content = QWidget(self.scroll)
         self.scroll_layout = QGridLayout(self.scroll_content)
         self.scroll.setWidget(self.scroll_content)
-        main_layout.addWidget(self.scroll)
+        right_layout.addWidget(self.scroll)
+
+        main_layout.addLayout(right_layout)
 
         self.setLayout(main_layout)
         self.show()
-
 
     def add_button(self, layout, text, handler, *args):
         button = QPushButton(text, self)
@@ -78,6 +98,8 @@ class Window(QWidget):
         if file_path:
             self.paths[path_key] = file_path
             self.labels[path_key].setText(f'{path_key}: <font color="green">{file_path}</font>')
+            self.labels[path_key].setToolTip(file_path)  # 设置完整路径为工具提示
+
 
     def startProcess(self):
         if any(not path for path in self.paths.values()):
