@@ -375,7 +375,7 @@ class Window(QWidget):
         if "资产负债表_con" not in sheets:
             sheets["资产负债表_con"] = sheets["资产负债表"] # 如果没有续表，就用资产负债表表代替, 这样可以减少代码修改
 
-        return {
+        data_set = {
             "营业利润": find_cell(self, sheets["利润表"], "营业利润"),
             "财务费用": find_cell(self, sheets["利润表"], "财务费用"),
             "折旧费": back_data.iloc[row_to_num(2), year_col],
@@ -420,6 +420,15 @@ class Window(QWidget):
             "总资产": find_cell(self, sheets["资产负债表"], "资  产  总  计"),
             "利息费用": find_cell(self, sheets["利润表"], "利息费用")
         }
+
+           # 将所有空着的数据填充为0
+        for i in data_set:
+            if str(data_set[i]) == "nan":
+                data_set[i] = 0
+            elif type(data_set[i]) == str:
+                QMessageBox.warning(self, '警告', f'数据{data_set[i]}不是数字, 请检查数据是否对应正确')
+
+        return data_set
 
     def write_to_excel(self, data_2021, data_2022, data_2023):
         try:
