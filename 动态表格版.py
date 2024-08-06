@@ -331,9 +331,7 @@ class Window(QWidget):
 
         data["息税摊折前利润 / 利息支出"] = EBITDA_to_interest_expense(
             data["EBITDA"],
-            data_set["财务费用"],
-            data_set["资本化利息"],
-            data_set["经营租赁的利息调整"]
+            data_set["利息费用"],
         )
 
         data["营业收入"] = data_set["营业收入"]
@@ -436,7 +434,7 @@ class Window(QWidget):
             sheet = report["Inputs"]
             print("Writing to Excel...")
             # 将数据写入Excel
-                # 逐年分析
+                # 逐年分析            
             sheet["D46"], sheet["E46"], sheet["F46"] = data_2023["EBITDA利润率"], data_2022["EBITDA利润率"], data_2021["EBITDA利润率"]
             sheet["D47"], sheet["E47"], sheet["F47"] = data_2023["资本回报率"], data_2022["资本回报率"], data_2021["资本回报率"]
             sheet["D48"], sheet["E48"], sheet["F48"] = data_2023["营业收入"], data_2022["营业收入"], data_2021["营业收入"]
@@ -451,10 +449,6 @@ class Window(QWidget):
             sheet["D63"], sheet["E63"], sheet["F63"] = data_2023["营业收入"], data_2022["营业收入"], data_2021["营业收入"]
             sheet["D64"], sheet["E64"], sheet["F64"] = data_2023["总资产"], data_2022["总资产"], data_2021["总资产"]
 
-                # 三年平均
-            for i in range(46, 65):
-                if i not in [50, 51, 52, 53, 61, 62]:
-                    sheet[f"B{i}"] = f"=AVERAGE(D{i}:F{i})"
             print("赋值完成")
 
             # 检查特殊情况并设置为 "NM"
@@ -526,8 +520,8 @@ def debt_to_PBITA(总负债, EBITDA):
 def FOCF_to_debt(FOCF, 总负债):
     return FOCF / 总负债
 
-def EBITDA_to_interest_expense(EBITDA, 财务费用, 资本化利息, 经营租赁的利息调整):
-    return EBITDA / (财务费用 + 资本化利息 + 经营租赁的利息调整)
+def EBITDA_to_interest_expense(EBITDA, 利息费用):
+    return EBITDA / 利息费用
 
 def col_to_num(col_str):
     num = 0
@@ -540,7 +534,7 @@ def row_to_num(num):
 
 
 def find_cell(self, sheet, keyword):
-    # 定位行
+    # 定位行 --------------------------------
     for row in range(sheet.shape[0]):
         for col in range(sheet.shape[1]):
             # print(keyword, sheet.iloc[row, col])
@@ -550,7 +544,7 @@ def find_cell(self, sheet, keyword):
                     continue
                 final_row = row
                 semi_col = col
-                print("final_row: ", final_row, "semi_col", semi_col)
+                print("final_row:", final_row, "semi_col:", semi_col)
                 break
         if keyword in str(sheet.iloc[row, col]):
             break
@@ -560,7 +554,7 @@ def find_cell(self, sheet, keyword):
         QMessageBox.warning(self, '警告', f"未找到{keyword}数据")
         return None
 
-    # 定位列 是在行名之后的列 列名为 "本期金额" / "期末余额" / "年末余额"
+    # 定位列 是在行名之后的列 列名为 "本期金额" / "期末余额" / "年末余额" --------------------------
     current_list = ["本期金额", "期末余额", "年末余额", "本年金额"]
 
 
@@ -571,7 +565,7 @@ def find_cell(self, sheet, keyword):
                 final_col = col
                 return sheet.iloc[final_row, final_col]
             
-    
+    # 如果有表头
     col = 0
     if semi_col == 0:
         for col_name in sheet.columns:
