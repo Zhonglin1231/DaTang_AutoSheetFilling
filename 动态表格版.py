@@ -1,6 +1,6 @@
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVBoxLayout, QLabel, QMessageBox, QScrollArea, QGridLayout, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QVBoxLayout, QLabel, QMessageBox, QScrollArea, QGridLayout, QHBoxLayout, QLineEdit
 from PyQt5.QtCore import Qt
 import pandas as pd
 from openpyxl import load_workbook
@@ -9,13 +9,8 @@ class Window(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.paths = {
-            "report_2021_path": "",
-            "report_2022_path": "",
-            "report_2023_path": "",
-            "back_data_path": "",
-            "target_path": ""
-        }
+        self.paths = {}
+        self.labels = {}
 
     def initUI(self):
         self.setGeometry(700, 400, 1000, 500)
@@ -27,16 +22,27 @@ class Window(QWidget):
         # 左侧文件选择布局
         left_layout = QVBoxLayout()
 
-        # 创建文件选择按钮布局
-        file_selection_layout = QVBoxLayout()
-        self.add_button(file_selection_layout, '选择2021年年报', self.select_file, "report_2021_path")
-        self.add_button(file_selection_layout, '选择2022年年报', self.select_file, "report_2022_path")
-        self.add_button(file_selection_layout, '选择2023年年报', self.select_file, "report_2023_path")
-        self.add_button(file_selection_layout, '选择数据底稿', self.select_file, "back_data_path")
-        self.add_button(file_selection_layout, '评级文件路径', self.select_file, "target_path")
+        # 添加年份输入框和按钮
+        self.year_range_label = QLabel("输入开始年份和结束年份:", self)
+        left_layout.addWidget(self.year_range_label)
+        
+        self.start_year_input = QLineEdit(self)
+        self.start_year_input.setPlaceholderText("开始年份")
+        left_layout.addWidget(self.start_year_input)
+        
+        self.end_year_input = QLineEdit(self)
+        self.end_year_input.setPlaceholderText("结束年份")
+        left_layout.addWidget(self.end_year_input)
+        
+        self.year_range_button = QPushButton("生成文件选择按钮", self)
+        self.year_range_button.clicked.connect(self.generate_file_buttons)
+        left_layout.addWidget(self.year_range_button)
 
-        file_selection_layout.addWidget(QLabel('--------↓--------', self), alignment=Qt.AlignCenter)
-        self.add_button(file_selection_layout, '开始处理', self.startProcess)
+        # 创建文件选择按钮布局
+        self.file_selection_layout = QVBoxLayout()
+        left_layout.addLayout(self.file_selection_layout)
+
+        self.file_selection_layout.addWidget(QLabel('--------↓--------', self), alignment=Qt.AlignCenter)
 
         # 创建一个水平滑动框来显示所有路径
         self.scroll_area = QScrollArea(self)
@@ -44,22 +50,9 @@ class Window(QWidget):
         self.scroll_content = QWidget(self.scroll_area)
         self.scroll_layout = QVBoxLayout(self.scroll_content)
 
-        self.labels = {
-            "report_2021_path": QLabel('2021年年报路径: <font color="red">未选择</font>', self),
-            "report_2022_path": QLabel('2022年年报路径: <font color="red">未选择</font>', self),
-            "report_2023_path": QLabel('2023年年报路径: <font color="red">未选择</font>', self),
-            "back_data_path": QLabel('数据底稿路径: <font color="red">未选择</font>', self),
-            "target_path": QLabel('评级文件路径: <font color="red">未选择</font>', self)
-        }
-
-        for label in self.labels.values():
-            self.scroll_layout.addWidget(label)
-
         self.scroll_content.setLayout(self.scroll_layout)
         self.scroll_area.setWidget(self.scroll_content)
-        file_selection_layout.addWidget(self.scroll_area)
-
-        left_layout.addLayout(file_selection_layout)
+        left_layout.addWidget(self.scroll_area)
 
         main_layout.addLayout(left_layout)
 
@@ -69,24 +62,57 @@ class Window(QWidget):
         # 添加固定第一行的布局
         fixed_header_layout = QHBoxLayout()
         fixed_header_layout.addWidget(QLabel("<b>指标</b>", self))
-        fixed_header_layout.addWidget(QLabel("<b>2023年数据</b>", self))
-        fixed_header_layout.addWidget(QLabel("<b>2022年数据</b>", self))
-        fixed_header_layout.addWidget(QLabel("<b>2021年数据</b>", self))
+        fixed_header_layout.addWidget(QLabel("<b>1年数据</b>", self))
+        fixed_header_layout.addWidget(QLabel("<b>2年数据</b>", self))
+        fixed_header_layout.addWidget(QLabel("<b>3年数据</b>", self))
 
         right_layout.addLayout(fixed_header_layout)
 
         # 添加滑动框
         self.scroll = QScrollArea(self)
         self.scroll.setWidgetResizable(True)
-        self.scroll_content = QWidget(self.scroll)
-        self.scroll_layout = QGridLayout(self.scroll_content)
-        self.scroll.setWidget(self.scroll_content)
+        self.scroll_content_right = QWidget(self.scroll)
+        self.scroll_layout_right = QGridLayout(self.scroll_content_right)
+        self.scroll.setWidget(self.scroll_content_right)
         right_layout.addWidget(self.scroll)
 
         main_layout.addLayout(right_layout)
 
         self.setLayout(main_layout)
         self.show()
+
+    def generate_file_buttons(self):
+        self.paths = {}
+        self.labels = {}
+
+
+        # 获取年份范围
+        start_year = int(self.start_year_input.text())
+        end_year = int(self.end_year_input.text())
+
+        # 生成文件选择按钮
+        for year in range(start_year, end_year + 1):
+            path_key = f"report_{year}_path"
+            self.paths[path_key] = ""
+            self.add_button(self.file_selection_layout, f'选择{year}年年报', self.select_file, path_key)
+            label = QLabel(f'{year}年年报路径: <font color="red">未选择</font>', self)
+            self.labels[path_key] = label
+            self.scroll_layout.addWidget(label)
+
+        self.paths["back_data_path"] = ""
+        self.add_button(self.file_selection_layout, '选择数据底稿', self.select_file, "back_data_path")
+        label = QLabel(f'数据底稿路径: <font color="red">未选择</font>', self)
+        self.labels["back_data_path"] = label
+        self.scroll_layout.addWidget(self.labels["back_data_path"])
+
+        self.paths["target_path"] = ""
+        self.add_button(self.file_selection_layout, '评级文件路径', self.select_file, "target_path")
+        label = QLabel(f'填入文件路径: <font color="red">未选择</font>', self)
+        self.labels["target_path"] = label
+        self.scroll_layout.addWidget(self.labels["target_path"])
+
+        self.add_button(self.file_selection_layout, '开始处理', self.startProcess)
+
 
     def add_button(self, layout, text, handler, *args):
         button = QPushButton(text, self)
@@ -98,7 +124,7 @@ class Window(QWidget):
         if file_path:
             self.paths[path_key] = file_path
             self.labels[path_key].setText(f'{path_key}: <font color="green">{file_path}</font>')
-            self.labels[path_key].setToolTip(file_path)  # 设置完整路径为工具提示
+            self.labels[path_key].setToolTip(file_path)
 
 
     def startProcess(self):
@@ -110,60 +136,67 @@ class Window(QWidget):
             QMessageBox.warning(self, '警告', '请选择正确的表格文件文件(.xlsx)/(.xls)')
             return
 
-        report_2021, report_2022, report_2023, back_data = self.read_files()
-        if report_2021 is None or report_2022 is None or report_2023 is None or back_data is None:
+        report_3, report_2, report_1, back_data = self.read_files()
+        if report_3 is None or report_2 is None or report_1 is None or back_data is None:
             return
 
-        data_2021, data_2022, data_2023 = self.extract_data(report_2021), self.extract_data(report_2022), self.extract_data(report_2023)
-        if data_2021 is None or data_2022 is None or data_2023 is None:
+        data_3, data_2, data_1 = self.extract_data(report_3), self.extract_data(report_2), self.extract_data(report_1)
+        if data_3 is None or data_2 is None or data_1 is None:
             QMessageBox.warning(self, '警告', '年报文件中表格数量不正确')
             return
         
 
-        final_data_2021, detailed_data_2021 = self.calculate_data(data_2021, back_data, 2021)
-        final_data_2022, detailed_data_2022 = self.calculate_data(data_2022, back_data, 2022)
-        final_data_2023, detailed_data_2023 = self.calculate_data(data_2023, back_data, 2023)
+        final_data_3, detailed_data_3 = self.calculate_data(data_3, back_data, 3)
+        final_data_2, detailed_data_2 = self.calculate_data(data_2, back_data, 2)
+        final_data_1, detailed_data_1 = self.calculate_data(data_1, back_data, 1)
 
         # 修正数据----------------------------------
             # 资本回报率取均值
-        if (final_data_2022["资本"]!=0) and (final_data_2021["所有者权益合计"]!=0):
-            final_data_2022["资本回报率"] = final_data_2022["EBIT"] / ((final_data_2022["资本"] + final_data_2021["资本"])/2)
+        if (final_data_2["资本"]!=0) and (final_data_3["所有者权益合计"]!=0):
+            final_data_2["资本回报率"] = final_data_2["EBIT"] / ((final_data_2["资本"] + final_data_3["资本"])/2)
 
-        if (final_data_2023["资本"]!=0) and (final_data_2022["所有者权益合计"]!=0):
-            final_data_2023["资本回报率"] = final_data_2023["EBIT"] / ((final_data_2023["资本"] + final_data_2022["资本"])/2)
+        if (final_data_1["资本"]!=0) and (final_data_2["所有者权益合计"]!=0):
+            final_data_1["资本回报率"] = final_data_1["EBIT"] / ((final_data_1["资本"] + final_data_2["资本"])/2)
         # ----------------------------------------
 
-        total_data_2021 = {**final_data_2021, **detailed_data_2021}
-        total_data_2022 = {**final_data_2022, **detailed_data_2022}
-        total_data_2023 = {**final_data_2023, **detailed_data_2023}
+        total_data_3 = {**final_data_3, **detailed_data_3}
+        total_data_2 = {**final_data_2, **detailed_data_2}
+        total_data_1 = {**final_data_1, **detailed_data_1}
 
         # 显示数据到滑动框
-        self.display_data(total_data_2023, total_data_2022, total_data_2021)
+        self.display_data(total_data_1, total_data_2, total_data_3)
 
-        self.write_to_excel(final_data_2021, final_data_2022, final_data_2023)
+        self.write_to_excel(final_data_3, final_data_2, final_data_1)
 
     def read_files(self):
+
+        for i in self.paths.values():
+            if i == "":
+                QMessageBox.warning(self, '警告', '请先选择所有文件')
+                return None, None, None, None
+
+        print(list(self.paths.values())[0])
         try:
-            report_2021 = pd.read_excel(self.paths["report_2021_path"], sheet_name=None)
+            report_3 = pd.read_excel(list(self.paths.values())[0], sheet_name=None)
         except:
-            QMessageBox.warning(self, '警告', '2021年年报文件读取失败')
+            QMessageBox.warning(self, '警告', '第一年年报文件读取失败')
             return None, None, None
         try:
-            report_2022 = pd.read_excel(self.paths["report_2022_path"], sheet_name=None)
+            report_2 = pd.read_excel(list(self.paths.values())[1], sheet_name=None)
         except:
-            QMessageBox.warning(self, '警告', '2022年年报文件读取失败')
+            QMessageBox.warning(self, '警告', '第二年年报文件读取失败')
             return None, None, None
         try:
-            report_2023 = pd.read_excel(self.paths["report_2023_path"], sheet_name=None)
+            report_1 = pd.read_excel(list(self.paths.values())[2], sheet_name=None)
         except:
-            QMessageBox.warning(self, '警告', '2023年年报文件读取失败')
+            QMessageBox.warning(self, '警告', '第三年年报文件读取失败')
             return None, None, None
         try:
             back_data = pd.read_excel(self.paths["back_data_path"])
         except:
             QMessageBox.warning(self, '警告', '数据底稿文件读取失败')
             return None, None, None
-        return report_2021, report_2022, report_2023, back_data
+        return report_3, report_2, report_1, back_data
 
     def extract_data(self, report):
         sheets = {name: sheet for name, sheet in report.items() if "资产负债表" in name or "利润表" in name or "现金流量表" in name}
@@ -342,17 +375,17 @@ class Window(QWidget):
 
         return data, data_set
 
-    def display_data(self, data_2023, data_2022, data_2021):
+    def display_data(self, data_1, data_2, data_3):
         row = 0
         col = 0
 
-        years_data = [("2023年数据", data_2023), ("2022年数据", data_2022), ("2021年数据", data_2021)]
+        years_data = [("1年数据", data_1), ("2年数据", data_2), ("3年数据", data_3)]
         
         
 
         for year_label, data in years_data:
             for key, value in data.items():
-                if year_label == "2023年数据": #为了避免重复，只显示第一例地数据标签
+                if year_label == "1年数据": #为了避免重复，只显示第一例地数据标签
                     self.scroll_layout.addWidget(QLabel(f'{key}:'), row, col)
                 self.scroll_layout.addWidget(QLabel(str(round(value, 2))), row, col + 1)
                 row += 1
@@ -428,26 +461,26 @@ class Window(QWidget):
 
         return data_set
 
-    def write_to_excel(self, data_2021, data_2022, data_2023):
+    def write_to_excel(self, data_3, data_2, data_1):
         try:
             report = load_workbook(self.paths["target_path"])
             sheet = report["Inputs"]
             print("Writing to Excel...")
             # 将数据写入Excel
                 # 逐年分析            
-            sheet["D46"], sheet["E46"], sheet["F46"] = data_2023["EBITDA利润率"], data_2022["EBITDA利润率"], data_2021["EBITDA利润率"]
-            sheet["D47"], sheet["E47"], sheet["F47"] = data_2023["资本回报率"], data_2022["资本回报率"], data_2021["资本回报率"]
-            sheet["D48"], sheet["E48"], sheet["F48"] = data_2023["营业收入"], data_2022["营业收入"], data_2021["营业收入"]
-            sheet["D49"], sheet["E49"], sheet["F49"] = data_2023["总资产"], data_2022["总资产"], data_2021["总资产"]
-            sheet["D54"], sheet["E54"], sheet["F54"] = data_2023["经营活动产生的资金/债务"], data_2022["经营活动产生的资金/债务"], data_2021["经营活动产生的资金/债务"]
-            sheet["D55"], sheet["E55"], sheet["F55"] = data_2023["债务/息税摊折前利润"], data_2022["债务/息税摊折前利润"], data_2021["债务/息税摊折前利润"]
-            sheet["D56"], sheet["E56"], sheet["F56"] = data_2023["自由运营现金流/债务"], data_2022["自由运营现金流/债务"], data_2021["自由运营现金流/债务"]
-            sheet["D57"], sheet["E57"], sheet["F57"] = data_2023["息税摊折前利润 / 利息支出"], data_2022["息税摊折前利润 / 利息支出"], data_2021["息税摊折前利润 / 利息支出"]
-            sheet["D58"], sheet["E58"], sheet["F58"] = data_2023["经营活动产生的现金(FFO)"], data_2022["经营活动产生的现金(FFO)"], data_2021["经营活动产生的现金(FFO)"]
-            sheet["D59"], sheet["E59"], sheet["F59"] = data_2023["总负债"], data_2022["总负债"], data_2021["总负债"]
-            sheet["D60"], sheet["E60"], sheet["F60"] = data_2023["EBITDA"], data_2022["EBITDA"], data_2021["EBITDA"]
-            sheet["D63"], sheet["E63"], sheet["F63"] = data_2023["营业收入"], data_2022["营业收入"], data_2021["营业收入"]
-            sheet["D64"], sheet["E64"], sheet["F64"] = data_2023["总资产"], data_2022["总资产"], data_2021["总资产"]
+            sheet["D46"], sheet["E46"], sheet["F46"] = data_1["EBITDA利润率"], data_2["EBITDA利润率"], data_3["EBITDA利润率"]
+            sheet["D47"], sheet["E47"], sheet["F47"] = data_1["资本回报率"], data_2["资本回报率"], data_3["资本回报率"]
+            sheet["D48"], sheet["E48"], sheet["F48"] = data_1["营业收入"], data_2["营业收入"], data_3["营业收入"]
+            sheet["D49"], sheet["E49"], sheet["F49"] = data_1["总资产"], data_2["总资产"], data_3["总资产"]
+            sheet["D54"], sheet["E54"], sheet["F54"] = data_1["经营活动产生的资金/债务"], data_2["经营活动产生的资金/债务"], data_3["经营活动产生的资金/债务"]
+            sheet["D55"], sheet["E55"], sheet["F55"] = data_1["债务/息税摊折前利润"], data_2["债务/息税摊折前利润"], data_3["债务/息税摊折前利润"]
+            sheet["D56"], sheet["E56"], sheet["F56"] = data_1["自由运营现金流/债务"], data_2["自由运营现金流/债务"], data_3["自由运营现金流/债务"]
+            sheet["D57"], sheet["E57"], sheet["F57"] = data_1["息税摊折前利润 / 利息支出"], data_2["息税摊折前利润 / 利息支出"], data_3["息税摊折前利润 / 利息支出"]
+            sheet["D58"], sheet["E58"], sheet["F58"] = data_1["经营活动产生的现金(FFO)"], data_2["经营活动产生的现金(FFO)"], data_3["经营活动产生的现金(FFO)"]
+            sheet["D59"], sheet["E59"], sheet["F59"] = data_1["总负债"], data_2["总负债"], data_3["总负债"]
+            sheet["D60"], sheet["E60"], sheet["F60"] = data_1["EBITDA"], data_2["EBITDA"], data_3["EBITDA"]
+            sheet["D63"], sheet["E63"], sheet["F63"] = data_1["营业收入"], data_2["营业收入"], data_3["营业收入"]
+            sheet["D64"], sheet["E64"], sheet["F64"] = data_1["总资产"], data_2["总资产"], data_3["总资产"]
 
             print("赋值完成")
 
@@ -457,25 +490,25 @@ class Window(QWidget):
                     if str(j.value) == "inf" or str(j.value) == "-inf" or str(j.value) == "nan":
                         j.value = "NM"
 
-            if data_2021["经营活动产生的现金(FFO)"] < 0 and data_2021["总负债"] < 0:
+            if data_3["经营活动产生的现金(FFO)"] < 0 and data_3["总负债"] < 0:
                 sheet["F54"] = "NM"
-            if data_2021["总负债"] < 0 and data_2021["EBITDA"] < 0:
+            if data_3["总负债"] < 0 and data_3["EBITDA"] < 0:
                 sheet["F55"] = "NM"
-            if data_2021["自由运营现金流(FOCF)"] < 0 and data_2021["总负债"] < 0:
+            if data_3["自由运营现金流(FOCF)"] < 0 and data_3["总负债"] < 0:
                 sheet["F56"] = "NM"
 
-            if data_2022["经营活动产生的现金(FFO)"] < 0 and data_2022["总负债"] < 0:
+            if data_2["经营活动产生的现金(FFO)"] < 0 and data_2["总负债"] < 0:
                 sheet["E54"] = "NM"
-            if data_2022["总负债"] < 0 and data_2022["EBITDA"] < 0:
+            if data_2["总负债"] < 0 and data_2["EBITDA"] < 0:
                 sheet["E55"] = "NM"
-            if data_2022["自由运营现金流(FOCF)"] < 0 and data_2022["总负债"] < 0:
+            if data_2["自由运营现金流(FOCF)"] < 0 and data_2["总负债"] < 0:
                 sheet["E56"] = "NM"
 
-            if data_2023["经营活动产生的现金(FFO)"] < 0 and data_2023["总负债"] < 0:
+            if data_1["经营活动产生的现金(FFO)"] < 0 and data_1["总负债"] < 0:
                 sheet["D54"], sheet["B54"] = "NM", "NM"
-            if data_2023["总负债"] < 0 and data_2023["EBITDA"] < 0:
+            if data_1["总负债"] < 0 and data_1["EBITDA"] < 0:
                 sheet["D55"], sheet["B55"] = "NM", "NM"
-            if data_2023["自由运营现金流(FOCF)"] < 0 and data_2023["总负债"] < 0:
+            if data_1["自由运营现金流(FOCF)"] < 0 and data_1["总负债"] < 0:
                 sheet["D56"], sheet["B56"] = "NM", "NM"
             print("特殊情况处理完成")
 
@@ -592,5 +625,3 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = Window()
     sys.exit(app.exec_())
-
-# test
