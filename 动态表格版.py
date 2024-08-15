@@ -442,7 +442,30 @@ class Window(QWidget):
                 year_offset = i + 1
                 # Assuming the columns D, E, F, etc. are for different years.
                 column = chr(ord('D') + year_offset - 1)
-                sheet[f"{column}46"], sheet[f"{column}47"], sheet[f"{column}48"] = final_data["EBITDA利润率"], final_data["资本回报率"], final_data["营业收入"]
+                sheet[f"{column}46"] = final_data["EBITDA利润率"]
+                sheet[f"{column}47"] = final_data["资本回报率"]
+                sheet[f"{column}48"] = final_data["营业收入"]
+                sheet[f"{column}49"] = final_data["总资产"]
+                sheet[f"{column}54"] = final_data["经营活动产生的资金/债务"]
+                sheet[f"{column}55"] = final_data["债务/息税摊折前利润"]
+                sheet[f"{column}56"] = final_data["自由运营现金流/债务"]
+                sheet[f"{column}57"] = final_data["息税摊折前利润 / 利息支出"]
+                sheet[f"{column}58"] = final_data["经营活动产生的现金(FFO)"]
+                sheet[f"{column}59"] = final_data["总负债"]
+                sheet[f"{column}60"] = final_data["EBITDA"]
+                sheet[f"{column}63"] = final_data["营业收入"]
+                sheet[f"{column}64"] = final_data["总资产"]
+
+            # 检查特殊情况并设置为 "NM"
+            for i, (year, final_data, _) in enumerate(final_data_list):
+                column = chr(ord('D') + i)
+                if final_data["经营活动产生的现金(FFO)"] < 0 and final_data["总负债"] < 0:
+                    sheet[f"{column}54"], sheet[f"B{54+i}"] = "NM", "NM"
+                if final_data["总负债"] < 0 and final_data["EBITDA"] < 0:
+                    sheet[f"{column}55"], sheet[f"B{55+i}"] = "NM", "NM"
+                if final_data["自由运营现金流(FOCF)"] < 0 and final_data["总负债"] < 0:
+                    sheet[f"{column}56"], sheet[f"B{56+i}"] = "NM", "NM"
+
 
             report.save(self.paths["target_path"])
             QMessageBox.information(self, "提示", "数据填充完成", QMessageBox.Yes)
