@@ -1,4 +1,5 @@
-# DaTang_AutoSheetFilling
+# DaTang_AutoSheetFilling  
+<a href=https://github.com/Zhonglin1231/DaTang_AutoSheetFilling/releases/tag/v4.1.0> **AutoSheetFiller v4.1.0** </a>
 
 现在要求更新了，要从年报中抓取数据，然后通过给定的公式然后填入最后的表中
 
